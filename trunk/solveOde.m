@@ -63,9 +63,6 @@ function solveOde()
     plot(t,Y(:,1));
 
 
-
-
-
     function dY = odeMcIntyr(t,Y)
 
 
@@ -77,37 +74,54 @@ function solveOde()
 
         dY = zeros(6*N,1);
         for i= 1:6:6*N
-            %nodal currents
-            alpha = zeros(4,1);
-            beta = zeros(4,1);
-            I = zeros(4,1);
-
-            alpha(1) = (6.57 * (V+20.4))/(1-exp(-(V+20.4)/10.3));
-            beta(1) = (0.304 * (-(V+25.7)))/(1-exp((V+25.7)/9.16));
-            alpha(2) = (0.34 * (-(V+114)))/(1-exp((V+114)/11));
-            beta(2) = 12.6/(1+exp(-(V+31.8)/13.4));
-
-            alpha(3) = (0.0353 * (V+27))/(1-exp(-(V+27)/10.2));
-            beta(3) = (0.000883 * (-(V+34)))/(1-exp((V+34)/10));
-
-            alpha(4) = 0.3/(1+exp((V+53)/-5));
-            beta(4) = 0.03/(1+exp((V+90)/-1));
-
-            dP = dpdt(alpha, beta, P);
-            for j = 1:4
-               Y(i+j) = dP(j); 
-            end
             
-            I(1) = g_naf*P(1)^3*P(2)*(V-e_na);   %INaf
-            I(2) = g_nap*P(3)^3*(V-e_na);        %INap
-            I(3) = g_k*P(4)*(V-e_k);             %IK
-            I(4) = g_l * (V-e_l);                %ILk
-
             Y(i) = -1*(sum(I)+V_ext) / C_n;
             
             
         end
     end
+
+    function [I,dm,dh,dp,ds] = nodalCurrent(V,m,h,p,s)
+        
+        m_alpha = (6.57 .* (V+20.4))./(1-exp(-(V+20.4)./10.3));
+        m_beta = (0.304 .* (-(V+25.7)))./(1-exp((V+25.7)./9.16));
+        h_alpha = (0.34 .* (-(V+114)))./(1-exp((V+114)./11));
+        h_beta = 12.6./(1+exp(-(V+31.8)./13.4));
+
+        p_alpha = (0.0353 .* (V+27))./(1-exp(-(V+27)./10.2));
+        p_beta = (0.000883 .* (-(V+34)))./(1-exp((V+34)./10));
+
+        s_alpha = 0.3./(1+exp((V+53)./-5));
+        s_beta = 0.03./(1+exp((V+90)./-1));
+
+        dm = dpdt(m_alpha,m_beta,m);
+        dh = dpdt(h_alpha,h_beta,h);
+        dp = dpdt(p_alpha,p_beta,p);
+        ds = dsdt(s_alpha,s_beta,s);
+
+        I_Naf = g_naf.*m.^3.*h.*(V-e_na);   %INaf
+        I_Nap = g_nap.*p.^3.*(V-e_na);        %INap
+        I_Ks = g_k.*s.*(V-e_k);             %IK
+        I_Lk = passiveCurrent(V,g_l,e_l);                %ILk
+        I = I_Naf + I_Nap + I_Ks + I_Lk;
+    end
+
+    function [I,dn] = flutCurrent(V,n)
+        n_alpha = (0.0462 .* (V+83.2))./(1-exp(-(V+83.2)./1.1));
+        n_beta = (0.0824 .* (-(V+66))) ./ (1-exp((V+66)./10.5));
+        
+        dn = dpdt(n_alpha,n_beta,n);
+        
+        I_Kf = g_kf.*n.^4.*(V-e_k);
+        
+        %missing passive!!!
+        I = I_Kf; %add pasive currents
+    end
+
+    function I = passiveCurrent(V,g,e)
+        I = g.*(V-e);
+    end
+
 
     function dp = dpdt(alpha, beta, para)
         dp = alpha.*(1-para)-beta.*para;
