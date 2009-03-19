@@ -47,21 +47,25 @@ function solveOde()
     
     r_mysa = r*4*mysalength/(mysaD^2*pi);
     r_flut = r*4*flutlength/(flutD^2*pi);
-    r_inter = r*4*interlength/(interD^2*pi);
+    r_inter = r*4*interlength/(axonD^2*pi);
     r_node = r*4*nodelength/(nodeD^2*pi);
     
     %how many nodes to simulate
-    N_nodes = 10;
+    N_nodes = 2;
+    N_inter = N_nodes-1
     
     i_node = [1,N_nodes];
-    i_para_m = [N_nodes+1,2*N_nodes];
-    i_para_h = [2*N_nodes+1,3*N_nodes];
-    i_para_p = [3*N_nodes+1,4*N_nodes];
-    i_para_s = [4*N_nodes+1,5*N_nodes];
-    i_mysa = [5*N_nodes+1,6*N_nodes;6*N_nodes+1,7*N_nodes];
-    i_flut = [7*N_nodes+1,8*N_nodes;8*N_nodes+1,9*N_nodes];
-    i_para_n = [9*N_nodes+1,10*N_nodes;10*N_nodes+1,11*N_nodes];
-    i_inter = [11*N_nodes+1,12*N_nodes;10*N_nodes+1,11*N_nodes];
+    i_para_m = [i_node(2)+1,i_node(2)+N_nodes];
+    i_para_h = [i_para_m(2)+1,i_para_m(2)+N_nodes];
+    i_para_p = [i_para_h(2)+1,i_para_h(2)+N_nodes];
+    i_para_s = [i_para_p(2)+1,i_para_p(2)+N_nodes];
+    i_mysa = [i_para_s(2)+1,i_para_s(2)+N_inter,i_para_s(2)+N_inter+1,i_para_s(2)+N_nodes*2];
+    i_flut = [i_mysa(4)+1,i_mysa(4)+N_inter,i_mysa(4)+N_inter+1,i_mysa(4)+N_inter*2];
+    i_para_n = [i_flut(4)+1,i_flut(4)+N_inter,i_flut(4)+N_inter+1,i_flut(4)+N_inter*2];
+    i_inter = [i_para_n(4)+1,i_para_n(4)+N_inter,i_para_n(4)+N_inter+1,i_para_n(4)+N_inter*2];
+    i_mysa_m = [i_inter(4)+1,i_inter(4)+N_inter,i_inter(4)+N_inter+1,i_inter(4)+N_inter*2];
+    i_flut_m = [i_mysa_m(4)+1,i_mysa_m(4)+N_inter,i_mysa_m(4)+N_inter+1,i_mysa_m(4)+N_inter*2];
+    i_inter_m = [i_flut_m(4)+1,i_flut_m(4)+N_inter,i_flut_m(4)+N_inter+1,i_flut_m(4)+N_inter*2];
     
     %Dummy Stimulusvoltage
     Ve = zeros((N_nodes-1)*11+1);
@@ -69,15 +73,17 @@ function solveOde()
     
     %Dummy IC
     IC = [ones(N_nodes,1)*v_init;zeros((N_nodes)*4,1);ones((N_nodes-1)*2,1) * v_init; ...
-        ones((N_nodes-1)*2,1)*v_init;zeros((N_nodes-1)*2,1);ones((N_nodes-1)*6,1)*v_init];
-    
-    [t,Y] = ode15s(@odeMcIntyr, [0,10], IC);
+        ones((N_nodes-1)*2,1)*v_init;zeros((N_nodes-1)*2,1);ones((N_nodes-1)*6,1)*v_init;...
+        zeros(10*N_inter,1)];
+        
+    [t,Y] = ode15s(@odeMcIntyr, [0,100], IC);
 
-
+    plot(t,Y(:,1));
 
     function dY = odeMcIntyr(t,Y)
-
-
+        dY = zeros(length(Y),1);
+        [I,dY(i_para_m(1):i_para_m(2)),dY(i_para_h(1):i_para_h(2)),dY(i_para_p(1):i_para_p(2)),dY(i_para_s(1):i_para_s(2))] = axnode(Y(i_node(1):i_node(2)),Y(i_para_m(1):i_para_m(2)),Y(i_para_h(1):i_para_h(2)),Y(i_para_p(1):i_para_p(2)),Y(i_para_s(1):i_para_s(2)));
+        %dY(i_node(1):i_node(2)) = cableEq(I,Y(i_node(1):i_node(2)),
         
     end
 
@@ -103,7 +109,7 @@ function solveOde()
         dm = dpdt(m_alpha,m_beta,m);
         dh = dpdt(h_alpha,h_beta,h);
         dp = dpdt(p_alpha,p_beta,p);
-        ds = dsdt(s_alpha,s_beta,s);
+        ds = dpdt(s_alpha,s_beta,s);
 
         I_Naf = g_naf.*m.^3.*h.*(V-e_na);       %Fast Sodium current
         I_Nap = g_nap.*p.^3.*(V-e_na);          %Persistent Sodium cureent
