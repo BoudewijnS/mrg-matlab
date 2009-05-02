@@ -17,10 +17,8 @@ function solveOde()
 
     r = 0.07;           % specific resistivity [kOhm*cm]
     c = 2;             % specific capacity [muF/cm^2]
-    g_myelin = 1;
-    g_mysa = 1;
-    g_flut = 0.1;
-    g_inter = 0.1;
+    mycm=0.1 
+	mygm=0.001
     k = 1;               % 37?C  k=3^(0.1*T-3.7)
     V_fem = 50;          % Voltage applied in FEM simulation [V]
     polarity = -1;       % -1/+1 ... neg./pos. active electrode
@@ -45,6 +43,15 @@ function solveOde()
     c_inter = c*axonD*pi*interlength;
     c_node = c*nodeD*pi*nodelength;
     
+    g_mysa = 0.001.*paraD1./fiberD;
+    g_flut = 0.0001.*paraD2./fiberD;
+    g_inter = 0.0001.*axonD./fiberD;
+    
+    
+    c_myelin = mycm/(nodelength*2);
+    g_myelin = mygm/(nodelength*2);
+    
+    
     r_mysa = r*4*mysalength/(mysaD^2*pi);
     r_flut = r*4*flutlength/(flutD^2*pi);
     r_inter = r*4*interlength/(axonD^2*pi);
@@ -68,7 +75,7 @@ function solveOde()
     i_inter_m = [i_flut_m(4)+1,i_flut_m(4)+N_inter,i_flut_m(4)+N_inter+1,i_flut_m(4)+N_inter*2];
     
     %Dummy Stimulusvoltage
-    Ve = zeros((N_nodes-1)*11+1);
+    Ve = zeros((N_nodes-1)*11+1,1);
     
     
     %Dummy IC
@@ -82,8 +89,24 @@ function solveOde()
 
     function dY = odeMcIntyr(t,Y)
         dY = zeros(length(Y),1);
-        [I,dY(i_para_m(1):i_para_m(2)),dY(i_para_h(1):i_para_h(2)),dY(i_para_p(1):i_para_p(2)),dY(i_para_s(1):i_para_s(2))] = axnode(Y(i_node(1):i_node(2)),Y(i_para_m(1):i_para_m(2)),Y(i_para_h(1):i_para_h(2)),Y(i_para_p(1):i_para_p(2)),Y(i_para_s(1):i_para_s(2)));
-        %dY(i_node(1):i_node(2)) = cableEq(I,Y(i_node(1):i_node(2)),
+        
+        %axonnode current
+        % what to do at first and last node??
+        [Iax,dY(i_para_m(1):i_para_m(2)),dY(i_para_h(1):i_para_h(2)),dY(i_para_p(1):i_para_p(2)),dY(i_para_s(1):i_para_s(2))] = axnode(Y(i_node(1):i_node(2)),Y(i_para_m(1):i_para_m(2)),Y(i_para_h(1):i_para_h(2)),Y(i_para_p(1):i_para_p(2)),Y(i_para_s(1):i_para_s(2)));
+        dY(i_node(1):i_node(2)) = cableEq(Iax,Y(i_node(1):i_node(2)),Y(i_mysa(3):i_mysa(4)),Y(i_mysa(1):i_mysa(2)),V_e(i_node(1):i_node(2)),Y(i_mysa_m(3):i_mysa_m(4)),Y(i_mysa_m(1):i_mysa_m(2)),r_node,r_mysa,r_mysa,c_node);
+        
+        %MYSA current
+        Imy = mysa(Y(i_mysa(1):i_mysa(4)));
+        
+        
+        %FLUT with Potassium current
+        %Ifl = flut(Y(i_flut(1):i_flut(4)));
+        
+        %FLUT without Potassium current
+        [Ifl,dY(i_para_n(1):i_para_n(4))] = flutPotassium(Y(i_flut(1):i_flut(4)),Y(i_para_n(1):i_para_n(4)));
+        
+        %internode currents
+        Iin = inter(Y(i_inter(1):i_inter(4)));
         
     end
 
@@ -128,21 +151,22 @@ function solveOde()
         
         I = I_Kf; 
     end
-    %wrong g!!!
+
+
     function I = flut(V)
-        g=0.0001.*paraD2./fiberD;		
+        g=g_flut;		
 		e=v_init;
         I = passiveCurrent(V,g,e);
     end
 
     function I = mysa(V)
-        g=0.001.*paraD1./fiberD;		
+        g=g_mysa;		
 		e=v_init;
         I = passiveCurrent(V,g,e);
     end
 
     function I = inter(V)
-        g=0.0001.*axonD./fiberD;
+        g=g_inter;
 		e=v_init;
         I = passiveCurrent(V,g,e);
     end
