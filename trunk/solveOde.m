@@ -61,60 +61,108 @@ function solveOde()
     N_nodes = 2;
     N_inter = N_nodes-1
     
+    % index values of the dV Vektor
     i_node = [1,N_nodes];
     i_para_m = [i_node(2)+1,i_node(2)+N_nodes];
     i_para_h = [i_para_m(2)+1,i_para_m(2)+N_nodes];
     i_para_p = [i_para_h(2)+1,i_para_h(2)+N_nodes];
     i_para_s = [i_para_p(2)+1,i_para_p(2)+N_nodes];
-    i_mysa = [i_para_s(2)+1,i_para_s(2)+N_inter,i_para_s(2)+N_inter+1,i_para_s(2)+N_nodes*2];
-    i_flut = [i_mysa(4)+1,i_mysa(4)+N_inter,i_mysa(4)+N_inter+1,i_mysa(4)+N_inter*2];
-    i_para_n = [i_flut(4)+1,i_flut(4)+N_inter,i_flut(4)+N_inter+1,i_flut(4)+N_inter*2];
-    i_inter = [i_para_n(4)+1,i_para_n(4)+N_inter,i_para_n(4)+N_inter+1,i_para_n(4)+N_inter*2];
-    i_mysa_m = [i_inter(4)+1,i_inter(4)+N_inter,i_inter(4)+N_inter+1,i_inter(4)+N_inter*2];
-    i_flut_m = [i_mysa_m(4)+1,i_mysa_m(4)+N_inter,i_mysa_m(4)+N_inter+1,i_mysa_m(4)+N_inter*2];
-    i_inter_m = [i_flut_m(4)+1,i_flut_m(4)+N_inter,i_flut_m(4)+N_inter+1,i_flut_m(4)+N_inter*2];
+    i_mysa = [i_para_s(2)+1,i_para_s(2)+N_inter, ...
+        i_para_s(2)+N_inter+1,i_para_s(2)+N_nodes*2];
+    i_flut = [i_mysa(4)+1,i_mysa(4)+N_inter, ... 
+        i_mysa(4)+N_inter+1,i_mysa(4)+N_inter*2];
+    i_para_n = [i_flut(4)+1,i_flut(4)+N_inter, ...
+        i_flut(4)+N_inter+1,i_flut(4)+N_inter*2];
+    i_inter = [i_para_n(4)+1,i_para_n(4)+N_inter, ... 
+        i_para_n(4)+N_inter+1,i_para_n(4)+N_inter*2, ...
+        i_para_n(4)+(2*N_inter)+1,i_para_n(4)*(3*N_inter)...
+        i_para_n(4)+(3*N_inter)+1,i_para_n(4)*(4*N_inter)...
+        i_para_n(4)+(4*N_inter)+1,i_para_n(4)*(5*N_inter)...
+        i_para_n(4)+(5*N_inter)+1,i_para_n(4)*(6*N_inter)];
+    i_leve2 = [i_inter(12)+1,2*i_inter(12)];
     
     %Dummy Stimulusvoltage
     Ve = zeros((N_nodes-1)*11+1,1);
     
     
     %Dummy IC
-    IC = [ones(N_nodes,1)*v_init;zeros((N_nodes)*4,1);ones((N_nodes-1)*2,1) * v_init; ...
-        ones((N_nodes-1)*2,1)*v_init;zeros((N_nodes-1)*2,1);ones((N_nodes-1)*6,1)*v_init;...
+    IC = [ones(N_nodes,1)*v_init;zeros((N_nodes)*4,1); ...
+        ones((N_nodes-1)*2,1) * v_init; ...
+        ones((N_nodes-1)*2,1)*v_init;zeros((N_nodes-1)*2,1); ... 
+        ones((N_nodes-1)*6,1)*v_init;...
         zeros(10*N_inter,1)];
         
     [t,Y] = ode15s(@odeMcIntyr, [0,100], IC);
 
     plot(t,Y(:,1));
-
+    
+    % odeMcIntyr: calculates the first derivative of all parameters of the
+    %             McIntyre nerve model
     function dY = odeMcIntyr(t,Y)
         dY = zeros(length(Y),1);
+        node = Y([i_node(1):i_node(2)]);
+        para_m = Y([i_para_m(1):i_para_m(2)]);
+        para_h = Y([i_para_h(1):i_para_h(2)]);
+        para_p = Y([i_para_p(1):i_para_p(2)]);
+        para_s = Y([i_para_s(1):i_para_s(2)]);
+        mysa_l = Y([i_mysa(1):i_mysa(2)]);
+        mysa_r = Y([i_mysa(3):i_mysa(4)]);
+        flut_l = Y([i_flut(1):i_flut(2)]);
+        flut_r = Y([i_flut(3):i_flut(4)]);
+        para_n_l = Y([i_para_n(1):i_para_n(2)]);
+        para_n_r = Y([i_para_n(3):i_para_n(4)]);
+        inter_1 = Y([i_inter(1):i_inter(2)]);
+        inter_2 = Y([i_inter(3):i_inter(4)]);
+        inter_3 = Y([i_inter(5):i_inter(6)]);
+        inter_4 = Y([i_inter(7):i_inter(8)]);
+        inter_5 = Y([i_inter(9):i_inter(10)]);
+        inter_6 = Y([i_inter(11):i_inter(12)]);
+        
         
         %axonnode current
         % what to do at first and last node??
-        [Iax,dY(i_para_m(1):i_para_m(2)),dY(i_para_h(1):i_para_h(2)),dY(i_para_p(1):i_para_p(2)),dY(i_para_s(1):i_para_s(2))] = axnode(Y(i_node(1):i_node(2)),Y(i_para_m(1):i_para_m(2)),Y(i_para_h(1):i_para_h(2)),Y(i_para_p(1):i_para_p(2)),Y(i_para_s(1):i_para_s(2)));
-        dY(i_node(1):i_node(2)) = cableEq(Iax,Y(i_node(1):i_node(2)),Y(i_mysa(3):i_mysa(4)),Y(i_mysa(1):i_mysa(2)),V_e(i_node(1):i_node(2)),Y(i_mysa_m(3):i_mysa_m(4)),Y(i_mysa_m(1):i_mysa_m(2)),r_node,r_mysa,r_mysa,c_node);
+        [Iax,dpara_m,dpara_h,dpara_p,dpara_s] = axnode(node,para_m,...
+                                                para_h,para_p,para_s);
+        dnode = cableEq(Iax,node,[node(1);mysa_l],...
+            [mysa_r;node(N_nodes)],V_e
+        dY(i_node(1):i_node(2)) = cableEq(Iax,Y(i_node(1):i_node(2)), ...
+            Y(i_mysa(3):i_mysa(4)),Y(i_mysa(1):i_mysa(2)), ...
+            V_e(i_node(1):i_node(2)),Y(i_mysa_m(3):i_mysa_m(4)), ...
+            Y(i_mysa_m(1):i_mysa_m(2)),r_node,r_mysa,r_mysa,c_node);
         
         %MYSA current
         Imy = mysa(Y(i_mysa(1):i_mysa(4)));
         
         
-        %FLUT with Potassium current
+        %FLUT without Potassium current
         %Ifl = flut(Y(i_flut(1):i_flut(4)));
         
-        %FLUT without Potassium current
-        [Ifl,dY(i_para_n(1):i_para_n(4))] = flutPotassium(Y(i_flut(1):i_flut(4)),Y(i_para_n(1):i_para_n(4)));
+        %FLUT with Potassium current
+        [Ifl,dY(i_para_n(1):i_para_n(4))] = ...
+            flutPotassium(Y(i_flut(1):i_flut(4)), ...
+                          Y(i_para_n(1):i_para_n(4)));
         
         %internode currents
         Iin = inter(Y(i_inter(1):i_inter(4)));
         
     end
 
+    % assemble: assembles seprate vectors into one for use with the 
+    %           ode function.
+    function dV = assemble(axon,para_m,para_h,para_p,para_s,mysa,flut, ...
+                           para_n,inter,layer2)
+                       
+       dV = [axon;para_m;para_h;para_p;para_s;mysa;flut;para_n;inter; ...
+             layer2];
+    end
+    
+    % cableEq: calculates the cable-equation
     function dV = cableEq(I,V,V1,V2,Ve,Ve1,Ve2,Ra,Ra1,Ra2,C)
         dV = (-I + (V1-V)./(Ra1./2+Ra./2) + (V2-V)./(Ra2./2+Ra./2) + ...
               (Ve1-Ve)./(Ra1./2+Ra./2) + (Ve2-Ve)./(Ra2./2+Ra./2))./C;
     end
-
+    
+    % axnode: calculation of the currents of the axon
     function [I,dm,dh,dp,ds] = axnode(V,m,h,p,s)
         
         m_alpha = (6.57 .* (V+20.4))./(1-exp(-(V+20.4)./10.3));
@@ -135,12 +183,13 @@ function solveOde()
         ds = dpdt(s_alpha,s_beta,s);
 
         I_Naf = g_naf.*m.^3.*h.*(V-e_na);       %Fast Sodium current
-        I_Nap = g_nap.*p.^3.*(V-e_na);          %Persistent Sodium cureent
+        I_Nap = g_nap.*p.^3.*(V-e_na);          %Persistent Sodium current
         I_Ks = g_k.*s.*(V-e_k);                 %Slow Potassium current
         I_Lk = passiveCurrent(V,g_l,e_l);       %Leakage current
         I = I_Naf + I_Nap + I_Ks + I_Lk;        %Sum of all nodal currents
     end
 
+    % flutPotassim: flut currents including the potassium current
     function [I,dn] = flutPotassium(V,n)
         n_alpha = (0.0462 .* (V+83.2))./(1-exp(-(V+83.2)./1.1));
         n_beta = (0.0824 .* (-(V+66))) ./ (1-exp((V+66)./10.5));
@@ -152,30 +201,34 @@ function solveOde()
         I = I_Kf; 
     end
 
-
+    % flut: simple flut current
     function I = flut(V)
         g=g_flut;		
 		e=v_init;
         I = passiveCurrent(V,g,e);
     end
-
+    
+    % mysa: simple mysa current
     function I = mysa(V)
         g=g_mysa;		
 		e=v_init;
         I = passiveCurrent(V,g,e);
     end
 
+    % inter: currents of the internode
     function I = inter(V)
         g=g_inter;
 		e=v_init;
         I = passiveCurrent(V,g,e);
     end
 
+    % passiveCurrent: calculation of the passive current
     function I = passiveCurrent(V,g,e)
         I = g.*(V-e);
     end
 
-
+    % dpdt: calculates the derivative of the of the parameter according to
+    %       alpha, beta and the previous value
     function dp = dpdt(alpha, beta, para)
         dp = alpha.*(1-para)-beta.*para;
     end
