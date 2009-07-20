@@ -79,8 +79,16 @@ function solveOde()
         i_para_n(4)+(3*N_inter)+1,i_para_n(4)*(4*N_inter)...
         i_para_n(4)+(4*N_inter)+1,i_para_n(4)*(5*N_inter)...
         i_para_n(4)+(5*N_inter)+1,i_para_n(4)*(6*N_inter)];
-    i_leve2 = [i_inter(12)+1,2*i_inter(12)];
-    
+    i_mysa_b = [i_inter(12)+1,i_inter(12)+N_inter, ...
+                i_inter(12)+N_inter+1,i_inter(12)+N_inter*2];
+    i_flut_b = [i_mysa_b(4)+1,i_mysa_b(4)+N_inter, ... 
+        i_mysa_b(4)+N_inter+1,i_mysa_b(4)+N_inter*2];
+    i_inter_b = [i_flut_b(4)+1,i_flut_b(4)+N_inter, ... 
+        i_flut_b(4)+N_inter+1,i_flut_b(4)+N_inter*2, ...
+        i_flut_b(4)+(2*N_inter)+1,i_flut_b(4)*(3*N_inter)...
+        i_flut_b(4)+(3*N_inter)+1,i_flut_b(4)*(4*N_inter)...
+        i_flut_b(4)+(4*N_inter)+1,i_flut_b(4)*(5*N_inter)...
+        i_flut_b(4)+(5*N_inter)+1,i_flut_b(4)*(6*N_inter)];
     %Dummy Stimulusvoltage
     Ve = zeros((N_nodes-1)*11+1,1);
     
@@ -118,20 +126,38 @@ function solveOde()
         inter_5 = Y([i_inter(9):i_inter(10)]);
         inter_6 = Y([i_inter(11):i_inter(12)]);
         
+        mysa_l_b = Y([i_mysa_b(1):i_mysa_b(2)]);
+        mysa_r_b = Y([i_mysa_b(3):i_mysa_b(4)]);
+        flut_l_b = Y([i_flut_b(1):i_flut_b(2)]);
+        flut_r_b = Y([i_flut_b(3):i_flut_b(4)]);
+        inter_1_b = Y([i_inter_b(1):i_inter_b(2)]);
+        inter_2_b = Y([i_inter_b(3):i_inter_b(4)]);
+        inter_3_b = Y([i_inter_b(5):i_inter_b(6)]);
+        inter_4_b = Y([i_inter_b(7):i_inter_b(8)]);
+        inter_5_b = Y([i_inter_b(9):i_inter_b(10)]);
+        inter_6_b = Y([i_inter_b(11):i_inter_b(12)]);
+        
         
         %axonnode current
         % what to do at first and last node??
         [Iax,dpara_m,dpara_h,dpara_p,dpara_s] = axnode(node,para_m,...
                                                 para_h,para_p,para_s);
         dnode = cableEq(Iax,node,[node(1);mysa_l],...
-            [mysa_r;node(N_nodes)],V_e
-        dY(i_node(1):i_node(2)) = cableEq(Iax,Y(i_node(1):i_node(2)), ...
-            Y(i_mysa(3):i_mysa(4)),Y(i_mysa(1):i_mysa(2)), ...
-            V_e(i_node(1):i_node(2)),Y(i_mysa_m(3):i_mysa_m(4)), ...
-            Y(i_mysa_m(1):i_mysa_m(2)),r_node,r_mysa,r_mysa,c_node);
+            [mysa_r;node(N_nodes)],V_e(i_node(1):i_node(2)),...
+            [V_e(1);mysa_l_m],[mysa_r_m;V_e(N_node)],...
+            r_node,r_mysa,r_mysa,c_node);
+        
         
         %MYSA current
-        Imy = mysa(Y(i_mysa(1):i_mysa(4)));
+        Imy_l = mysa(mysa_l,i_mysa_l_b);
+        Imy_r = mysa(mysa_r,i_mysa_r_b);
+        
+        dmysa_l = cableEq(Imy_l,mysa_l,node(1:N_inter),flut_l, ...
+                          i_mysa_l_b,V_e(i_node(1):i_node(2)-1), ...
+                          flut_l_b,r_mysa,r_node,r_flut,c_mysa);
+        dmysa_r = cableEq(Imy_r,mysa_r,node(2:N_nodes),flut_r, ...
+                          i_mysa_r_b,V_e(i_node(1)+1:i_node(2)), ...
+                          flut_r_b,r_mysa,r_node,r_flut,c_mysa);
         
         
         %FLUT without Potassium current
@@ -144,6 +170,8 @@ function solveOde()
         
         %internode currents
         Iin = inter(Y(i_inter(1):i_inter(4)));
+        
+        dY=[dnode;dpara_m;dpara_h;dPara_p;dpara_s;dmysa_l;dmysa_r];
         
     end
 
@@ -189,7 +217,7 @@ function solveOde()
         I = I_Naf + I_Nap + I_Ks + I_Lk;        %Sum of all nodal currents
     end
 
-    % flutPotassim: flut currents including the potassium current
+    % flutPotassim: flut potassium current
     function [I,dn] = flutPotassium(V,n)
         n_alpha = (0.0462 .* (V+83.2))./(1-exp(-(V+83.2)./1.1));
         n_beta = (0.0824 .* (-(V+66))) ./ (1-exp((V+66)./10.5));
@@ -202,16 +230,14 @@ function solveOde()
     end
 
     % flut: simple flut current
-    function I = flut(V)
-        g=g_flut;		
-		e=v_init;
+    function I = flut(V,e)
+        g=g_flut;
         I = passiveCurrent(V,g,e);
     end
     
     % mysa: simple mysa current
-    function I = mysa(V)
-        g=g_mysa;		
-		e=v_init;
+    function I = mysa(V,e)
+        g=g_mysa;
         I = passiveCurrent(V,g,e);
     end
 
