@@ -17,8 +17,9 @@ function solveOde()
 
     r = 0.07;           % specific resistivity [kOhm*cm]
     c = 2;             % specific capacity [muF/cm^2]
-    mycm=0.1 
-	mygm=0.001
+    rhoa=0.7e6;         %Ohm um
+    mycm=0.1 ;
+	mygm=0.001;
     k = 1;               % 37?C  k=3^(0.1*T-3.7)
     V_fem = 50;          % Voltage applied in FEM simulation [V]
     polarity = -1;       % -1/+1 ... neg./pos. active electrode
@@ -33,7 +34,13 @@ function solveOde()
     nodeD=4.7 ;
     mysaD=4.7 ;
     flutD=10.4 ;
+    space_p1=0.002;
+    space_p2=0.004;
+    space_i=0.004;
     deltax=1400 ;
+    nl = 140;
+    xg = mygm/(nl*2);   %g for membrane
+    xc = mycm/(nl*2);   %c for mambrane
     flutlength=56; 
     nl=140;
     interlength=(deltax-nodelength-(2*mysalength)-(2*flutlength))/6;
@@ -43,8 +50,8 @@ function solveOde()
     c_inter = c*axonD*pi*interlength;
     c_node = c*nodeD*pi*nodelength;
     
-    g_mysa = 0.001.*paraD1./fiberD;
-    g_flut = 0.0001.*paraD2./fiberD;
+    g_mysa = 0.001.*mysaD./fiberD;
+    g_flut = 0.0001.*flutD./fiberD;
     g_inter = 0.0001.*axonD./fiberD;
     
     
@@ -56,6 +63,11 @@ function solveOde()
     r_flut = r*4*flutlength/(flutD^2*pi);
     r_inter = r*4*interlength/(axonD^2*pi);
     r_node = r*4*nodelength/(nodeD^2*pi);
+    
+    r_pn0=(rhoa*.01)/(pi*((((nodeD/2)+space_p1)^2)-((nodeD/2)^2)));
+	r_pn1=(rhoa*.01)/(pi*((((mysaD/2)+space_p1)^2)-((mysaD/2)^2)));
+	r_pn2=(rhoa*.01)/(pi*((((flutD/2)+space_p2)^2)-((flutD/2)^2)));
+	r_px=(rhoa*.01)/(pi*((((axonD/2)+space_i)^2)-((axonD/2)^2)));
     
     %how many nodes to simulate
     N_nodes = 2;
@@ -149,27 +161,62 @@ function solveOde()
         
         
         %MYSA current
-        Imy_l = mysa(mysa_l,i_mysa_l_b);
-        Imy_r = mysa(mysa_r,i_mysa_r_b);
+        Imy_l = mysa(mysa_l,mysa_l_b);
+        Imy_r = mysa(mysa_r,mysa_r_b);
         
         dmysa_l = cableEq(Imy_l,mysa_l,node(1:N_inter),flut_l, ...
-                          i_mysa_l_b,V_e(i_node(1):i_node(2)-1), ...
+                          mysa_l_b,V_e(i_node(1):i_node(2)-1), ...
                           flut_l_b,r_mysa,r_node,r_flut,c_mysa);
         dmysa_r = cableEq(Imy_r,mysa_r,node(2:N_nodes),flut_r, ...
-                          i_mysa_r_b,V_e(i_node(1)+1:i_node(2)), ...
+                          mysa_r_b,V_e(i_node(1)+1:i_node(2)), ...
                           flut_r_b,r_mysa,r_node,r_flut,c_mysa);
         
+        %currents between myelin and node at mysa regions
+        Imy_l_b = -Imy_l + passiveCurrent(mysa_l_b,xg,...
+            V_e(i_mysa(1):i_mysa(2)));
+        Imy_r_b = -Imy_r + passiveCurrent(mysa_r_b,xg,...
+            V_e(i_mysa(3):i_mysa(4)));
         
-        %FLUT without Potassium current
-        %Ifl = flut(Y(i_flut(1):i_flut(4)));
+        dmysa_l_b = cableEq(Imy_l_b,mysa_l_b,V_e(1:N_inter),flut_l_b, ...
+                            V_e(i_mysa(1):i_mysa(2)),V_e(1:N_inter), ...
+                            V_e(i_flut(1):i_flut(2)),r_pn1,r_pn0,r_pn2,xc);
+        dmysa_r_b = cableEq(Imy_r_b,mysa_r_b,V_e(2:N_nodes),flut_r_b, ...
+                            V_e(i_mysa(3):i_mysa(4)),V_e(2:N_nodes), ...
+                            V_e(i_flut(3):i_flut(4)),r_pn1,r_pn0,r_pn2,xc);
+                        
+        %FLUT currents
+        Ifl_l = flut(flut_l,flut_l_b);
+        Ifl_r = flut(flut_r,flut,r_b);
         
-        %FLUT with Potassium current
-        [Ifl,dY(i_para_n(1):i_para_n(4))] = ...
-            flutPotassium(Y(i_flut(1):i_flut(4)), ...
-                          Y(i_para_n(1):i_para_n(4)));
+        %FLUT potassium currents
+        [Ifl_lp, dpara_n_l] = flutPotassium(flut_l,para_n_l);
+        Ifl_l = Ifl_l + Ifl_lp;
+        [Ifl_rp, dpara_n_r] = flutPotassium(flut_r,para_n_r);
+        Ifl_r = Ifl_r + Ifl_rp;
+        
+        dflut_l = cableEq(Ifl_l,flut_l,mysa_l,inter_1, ...
+                          flut_l_b,mysa_l_b,inter_1_b, ...
+                          r_flut,r_mysa,r_inter,c_flut);
+        dflut_r = cableEq(Ifl_l,flut_r,mysa_r,inter_6, ...
+                          flut_r_b,mysa_r_b,inter_6_b, ...
+                          r_flut,r_mysa,r_inter,c_flut);
+        
+        %currents between myelin and node at flut regions
+        Ifl_l_b = -Ifl_l + passiveCurrent(flut_l_b,xg, ...
+                                            V_e(i_flut(1):i_flut(2)));
+        Ifl_r_b = -Ifl_r + passiveCurrent(flut_r_b,xg, ...
+                                            V_e(i_flut(3):i_flut(4)));
+        
+        dflut_l_b = cableEq(Ifl_l_b,flut_l_b,mysa_l_b,inter_1_b, ...
+                    V_e(i_flut(1):i_flut(2)),V_e(i_mysa(1):i_mysa(2)), ...
+                    V_e(i_inter(1):i_inter(2)),r_pn2,r_pn1,r_px,xc);
+        dflut_r_b = cableEq(Ifl_r_b,flut_r_b,mysa_r_b,inter_6_b, ...
+                    V_e(i_flut(3):i_flut(4)),V_e(i_mysa(3):i_mysa(4)), ...
+                    V_e(i_inter(11):i_inter(12)),r_pn2,r_pn1,r_px,xc);              
         
         %internode currents
-        Iin = inter(Y(i_inter(1):i_inter(4)));
+        Iin_1 = inter(inter_1,inter_1_b);
+        %din_1 = cableEq;
         
         dY=[dnode;dpara_m;dpara_h;dPara_p;dpara_s;dmysa_l;dmysa_r];
         
@@ -242,9 +289,8 @@ function solveOde()
     end
 
     % inter: currents of the internode
-    function I = inter(V)
+    function I = inter(V,e)
         g=g_inter;
-		e=v_init;
         I = passiveCurrent(V,g,e);
     end
 
