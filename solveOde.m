@@ -1,4 +1,4 @@
-function solveOde()
+function [t,Y]=solveOde()
 
     % parameters
     % ----------------------------------------------------------------
@@ -64,7 +64,7 @@ function solveOde()
     
     %how many nodes to simulate
     N_nodes = 2;
-    N_inter = N_nodes-1
+    N_inter = N_nodes-1;
     
     % index values of the dV Vektor
     i_node = [1,N_nodes];
@@ -83,7 +83,7 @@ function solveOde()
         i_para_n(4)+(2*N_inter)+1,i_para_n(4)+(3*N_inter);...
         i_para_n(4)+(3*N_inter)+1,i_para_n(4)+(4*N_inter);...
         i_para_n(4)+(4*N_inter)+1,i_para_n(4)+(5*N_inter);...
-        i_para_n(4)+(5*N_inter)+1,i_para_n(4)+(6*N_inter)]
+        i_para_n(4)+(5*N_inter)+1,i_para_n(4)+(6*N_inter)];
     i_mysa_b = [i_inter(12)+1,i_inter(12)+N_inter, ...
                 i_inter(12)+N_inter+1,i_inter(12)+N_inter*2];
     i_flut_b = [i_mysa_b(4)+1,i_mysa_b(4)+N_inter, ... 
@@ -106,9 +106,9 @@ function solveOde()
 %         zeros(10*N_inter,1)];
     IC = zeros(i_inter_b(6,2),1);
 
-    [t,Y] = ode15s(@odeMcIntyr, [0,100], IC);
+    [t,Y] = ode15s(@odeMcIntyr, [0,1000], IC);
 
-    plot(t,Y(:,1));
+    plot(t,Y(:,1),t,Y(:,2));
     
     % odeMcIntyr: calculates the first derivative of all parameters of the
     %             McIntyre nerve model
@@ -158,8 +158,8 @@ function solveOde()
         
         
         %MYSA current
-        Imy_l = mysa(mysa_l,mysa_l_b);
-        Imy_r = mysa(mysa_r,mysa_r_b);
+        Imy_l = mysa(mysa_l);
+        Imy_r = mysa(mysa_r);
         
         dmysa_l = cableEq(Imy_l,mysa_l,node(1:N_inter),flut_l, ...
                           mysa_l_b,V_e(i_node(1):i_node(2)-1), ...
@@ -174,16 +174,15 @@ function solveOde()
         Imy_r_b = -Imy_r + passiveCurrent(mysa_r_b,xg,...
             V_e(i_mysa(3):i_mysa(4)));
         
-        dmysa_l_b = cableEq(Imy_l_b,mysa_l_b,V_e(1:N_inter),flut_l_b, ...
-                            V_e(i_mysa(1):i_mysa(2)),V_e(1:N_inter), ...
-                            V_e(i_flut(1):i_flut(2)),r_pn1,r_pn0,r_pn2,xc);
-        dmysa_r_b = cableEq(Imy_r_b,mysa_r_b,V_e(2:N_nodes),flut_r_b, ...
-                            V_e(i_mysa(3):i_mysa(4)),V_e(2:N_nodes), ...
-                            V_e(i_flut(3):i_flut(4)),r_pn1,r_pn0,r_pn2,xc);
+        dmysa_l_b = extracellular(Imy_l_b,mysa_l_b,V_e(1:N_inter),flut_l_b, ...
+                            r_pn1,r_pn0,r_pn2,xc);
+        
+        dmysa_r_b = extracellular(Imy_r_b,mysa_r_b,V_e(2:N_nodes),flut_r_b, ...
+                            r_pn1,r_pn0,r_pn2,xc);
                         
         %FLUT currents
-        Ifl_l = flut(flut_l,flut_l_b);
-        Ifl_r = flut(flut_r,flut_r_b);
+        Ifl_l = flut(flut_l);
+        Ifl_r = flut(flut_r);
         
         %FLUT potassium currents
         [Ifl_lp, dpara_n_l] = flutPotassium(flut_l,para_n_l);
@@ -204,23 +203,20 @@ function solveOde()
         Ifl_r_b = -Ifl_r + passiveCurrent(flut_r_b,xg, ...
                                             V_e(i_flut(3):i_flut(4)));
         
-        dflut_l_b = cableEq(Ifl_l_b,flut_l_b,mysa_l_b,inter_b(:,1), ...
-                    V_e(i_flut(1):i_flut(2)),V_e(i_mysa(1):i_mysa(2)), ...
-                    V_e(i_inter(1,1):i_inter(1,2)),r_pn2,r_pn1,r_px,xc);
-        dflut_r_b = cableEq(Ifl_r_b,flut_r_b,mysa_r_b,inter_b(:,1), ...
-                    V_e(i_flut(3):i_flut(4)),V_e(i_mysa(3):i_mysa(4)), ...
-                    V_e(i_inter(6,1):i_inter(6,2)),r_pn2,r_pn1,r_px,xc);              
+        dflut_l_b = extracellular(Ifl_l_b,flut_l_b,mysa_l_b,inter_b(:,1), ...
+                    r_pn2,r_pn1,r_px,xc);
+        dflut_r_b = extracellular(Ifl_r_b,flut_r_b,mysa_r_b,inter_b(:,1), ...
+                   r_pn2,r_pn1,r_px,xc);              
         
         %internode currents
-        Iin = internodes(inter,inter_b);
+        Iin = internodes(inter);
         inter2 = [flut_l,inter,flut_r];
-        inter2b = [flut_l_b,inter_b,flut_r_b],
+        inter2b = [flut_l_b,inter_b,flut_r_b];
         
         Vi = [i_flut(1:2);i_inter;i_flut(3:4)];
         res = ones(6,1)*r_inter;
         res = [r_flut;res;r_flut];
         dinter = zeros(N_inter,6);
-        c_inter
         for j = 2:7
             dinter(:,j-1) = cableEq(Iin(:,j-1),inter2(:,j),inter2(:,j-1),...
                         inter2(:,j+1),inter2b(:,j),inter2b(:,j-1),...
@@ -236,11 +232,9 @@ function solveOde()
         
         dinter_b = zeros(N_inter,6);
         for j = 2:7
-            dinter_b(:,j) = cableEq(Iin_b(:,j-1),inter2b(:,j),...
+            dinter_b(:,j-1) = extracellular(Iin_b(:,j-1),inter2b(:,j),...
                         inter2b(:,j-1),inter2b(:,j+1), ...
-                        V_e(Vi(j,1):Vi(j,2)),V_e(Vi(j-1,1):Vi(j-1,2)), ...
-                        V_e(Vi(j+1,1):Vi(j+1,2)),res(j),res(j-1),...
-                        res(j+1),xc);
+                        res(j),res(j-1),res(j+1),xc);
         end
         
         %finally assemble derivatives into an
@@ -258,6 +252,14 @@ function solveOde()
         dV = (-I + (V1-V)./(Ra1./2+Ra./2) + (V2-V)./(Ra2./2+Ra./2) + ...
               (Ve1-Ve)./(Ra1./2+Ra./2) + (Ve2-Ve)./(Ra2./2+Ra./2))./C;
     end
+
+    % extracellular: extracellular currents similar to the Neuron function
+    %                with the same name
+    function dV = extracellular(I,V,V1,V2,Ra,Ra1,Ra2,C)
+       dV = (-I + (V1-V)./(Ra1./2+Ra./2) + (V2-V)./(Ra2./2+Ra./2))./C;
+       
+    end
+   
     
     % axnode: calculation of the currents of the axon
     function [I,dm,dh,dp,ds] = axnode(V,m,h,p,s)
@@ -299,20 +301,23 @@ function solveOde()
     end
 
     % flut: simple flut current
-    function I = flut(V,e)
+    function I = flut(V)
         g=g_flut;
+        e=-80;
         I = passiveCurrent(V,g,e);
     end
     
     % mysa: simple mysa current
-    function I = mysa(V,e)
+    function I = mysa(V)
         g=g_mysa;
+        e=-80;
         I = passiveCurrent(V,g,e);
     end
 
     % inter: currents of the internode
-    function I = internodes(V,e)
+    function I = internodes(V)
         g=g_inter;
+        e=-80;
         I = passiveCurrent(V,g,e);
     end
 
