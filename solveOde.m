@@ -1,4 +1,4 @@
-function [t,Y]=solveOde()
+function [t,Y]=solveOde(IC)
 
     % parameters
     % ----------------------------------------------------------------
@@ -9,8 +9,8 @@ function [t,Y]=solveOde()
     g_k = 80;
     g_kf = 0;
     g_l = 7;           % leak channel conductivity [mS/cm^2] 
-    e_na     = 50.0;
-    e_k      = -90.0;
+    e_na = 50.0;
+    e_k = -90.0;
     e_l	= -90.0;
 
     r = 0.07;           % specific resistivity [kOhm*cm]
@@ -47,6 +47,10 @@ function [t,Y]=solveOde()
     c_inter = c*axonD*pi*interlength;
     c_node = c*nodeD*pi*nodelength;
     
+    c_mysa_m = mycm/nl*mysaD*pi*mysalength;
+    c_flut_m = mycm/nl*flutD*pi*flutlength;
+    c_inter_m = mycm/nl*axonD*pi*interlength;
+    
     g_mysa = 0.001.*mysaD./fiberD;
     g_flut = 0.0001.*flutD./fiberD;
     g_inter = 0.0001.*axonD./fiberD;
@@ -62,8 +66,10 @@ function [t,Y]=solveOde()
 	r_pn2=(rhoa*.01)/(pi*((((flutD/2)+space_p2)^2)-((flutD/2)^2)));
 	r_px=(rhoa*.01)/(pi*((((axonD/2)+space_i)^2)-((axonD/2)^2)));
     
+    
+    
     %how many nodes to simulate
-    N_nodes = 2;
+    N_nodes = 20;
     N_inter = N_nodes-1;
     
     % index values of the dV Vektor
@@ -104,15 +110,26 @@ function [t,Y]=solveOde()
 %         ones((N_nodes-1)*2,1)*v_init;zeros((N_nodes-1)*2,1); ... 
 %         ones((N_nodes-1)*6,1)*v_init;...
 %         zeros(10*N_inter,1)];
-    IC = zeros(i_inter_b(6,2),1);
+    if (exist('IC','var') == 0)
+        IC = zeros(i_inter_b(6,2),1);
+    end
+    [t,Y] = ode15s(@odeMcIntyr, [0,20], IC);
 
-    [t,Y] = ode15s(@odeMcIntyr, [0,1000], IC);
-
-    plot(t,Y(:,1),t,Y(:,2));
-    
+    clf();
+    figure(1);
+    for i = 1:N_nodes
+        V(i,:) = Y(:,i) - 40*i;
+    end
+    plot(t,V);
+    hold off;
     % odeMcIntyr: calculates the first derivative of all parameters of the
     %             McIntyre nerve model
     function dY = odeMcIntyr(t,Y)
+        if mod(t,10) < 1.5
+            V_e(10) = 50;
+        else
+            V_e(10) = 0;
+        end
         dY = zeros(length(Y),1);
         inter = zeros(N_inter,6);
         inter_b = zeros(N_inter,6);
@@ -144,7 +161,7 @@ function [t,Y]=solveOde()
         inter_b(:,3) = Y(i_inter_b(3,1):i_inter_b(3,2));
         inter_b(:,4) = Y(i_inter_b(4,1):i_inter_b(4,2));
         inter_b(:,5) = Y(i_inter_b(5,1):i_inter_b(5,2));
-        inter_b(:,6) = Y(i_inter_b(6,1):i_inter_b(6,2));
+        inter_b(:,6) = Y(i_inter_b(6,1):i_inter_b(6,2));  
         
         
         %axonnode current
@@ -175,10 +192,10 @@ function [t,Y]=solveOde()
             V_e(i_mysa(3):i_mysa(4)));
         
         dmysa_l_b = extracellular(Imy_l_b,mysa_l_b,V_e(1:N_inter),flut_l_b, ...
-                            r_pn1,r_pn0,r_pn2,xc);
+                            r_pn1,r_pn0,r_pn2,c_mysa_m);
         
         dmysa_r_b = extracellular(Imy_r_b,mysa_r_b,V_e(2:N_nodes),flut_r_b, ...
-                            r_pn1,r_pn0,r_pn2,xc);
+                            r_pn1,r_pn0,r_pn2,c_mysa_m);
                         
         %FLUT currents
         Ifl_l = flut(flut_l);
@@ -204,9 +221,9 @@ function [t,Y]=solveOde()
                                             V_e(i_flut(3):i_flut(4)));
         
         dflut_l_b = extracellular(Ifl_l_b,flut_l_b,mysa_l_b,inter_b(:,1), ...
-                    r_pn2,r_pn1,r_px,xc);
+                    r_pn2,r_pn1,r_px,c_flut_m);
         dflut_r_b = extracellular(Ifl_r_b,flut_r_b,mysa_r_b,inter_b(:,1), ...
-                   r_pn2,r_pn1,r_px,xc);              
+                   r_pn2,r_pn1,r_px,c_flut_m);              
         
         %internode currents
         Iin = internodes(inter);
@@ -234,7 +251,7 @@ function [t,Y]=solveOde()
         for j = 2:7
             dinter_b(:,j-1) = extracellular(Iin_b(:,j-1),inter2b(:,j),...
                         inter2b(:,j-1),inter2b(:,j+1), ...
-                        res(j),res(j-1),res(j+1),xc);
+                        res(j),res(j-1),res(j+1),c_inter_m);
         end
         
         %finally assemble derivatives into an
