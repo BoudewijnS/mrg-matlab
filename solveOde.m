@@ -1,4 +1,4 @@
-function [t,Y]=solveOde(IC)
+function [t,Y]=solveOde(dur,IC)
 
     % parameters
     % ----------------------------------------------------------------
@@ -113,7 +113,10 @@ function [t,Y]=solveOde(IC)
     if (exist('IC','var') == 0)
         IC = zeros(i_inter_b(6,2),1);
     end
-    [t,Y] = ode15s(@odeMcIntyr, [0,20], IC);
+    if (exist('dur','var')==0)
+        dur = 10;
+    end
+    [t,Y] = ode15s(@odeMcIntyr, [0,dur], IC);
 
     clf();
     figure(1);
@@ -125,10 +128,10 @@ function [t,Y]=solveOde(IC)
     % odeMcIntyr: calculates the first derivative of all parameters of the
     %             McIntyre nerve model
     function dY = odeMcIntyr(t,Y)
-        if mod(t,10) < 1.5
-            V_e(10) = 50;
+        if mod(t,100) < .3
+            V_e(1) = 50;
         else
-            V_e(10) = 0;
+            V_e(1) = 0;
         end
         dY = zeros(length(Y),1);
         inter = zeros(N_inter,6);
