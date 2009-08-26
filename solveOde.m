@@ -13,7 +13,7 @@ function [t,Y]=solveOde(dur,IC)
     e_k = -90.0;
     e_l	= -90.0;
 
-    r = 0.07;           % specific resistivity [kOhm*cm]
+    r = 0.07;           % specific resistivity 
     c = 2;             % specific capacity [muF/cm^2]
     rhoa=0.7e6;         %Ohm um
     mycm=0.1 ;
@@ -24,7 +24,7 @@ function [t,Y]=solveOde(dur,IC)
     % ----------------------------------------------------------------
     mysalength=3.0; 
 	nodelength=1.0;
-    v_init = -80; %Initial Voltage
+    vrest = -80; %Initial Voltage
     % Parameters from neuron file with fiberD 14 (needs to be corrected)
     fiberD=14.0;
     g=0.739 ;
@@ -61,15 +61,15 @@ function [t,Y]=solveOde(dur,IC)
     r_inter = r*4*interlength/(axonD^2*pi);
     r_node = r*4*nodelength/(nodeD^2*pi);
     
-    r_pn0=(rhoa*.01)/(pi*((((nodeD/2)+space_p1)^2)-((nodeD/2)^2)));
-	r_pn1=(rhoa*.01)/(pi*((((mysaD/2)+space_p1)^2)-((mysaD/2)^2)));
-	r_pn2=(rhoa*.01)/(pi*((((flutD/2)+space_p2)^2)-((flutD/2)^2)));
-	r_px=(rhoa*.01)/(pi*((((axonD/2)+space_i)^2)-((axonD/2)^2)));
+    r_pn0=(r*nodelength)/(pi*((((nodeD/2)+space_p1)^2)-((nodeD/2)^2)));
+	r_pn1=(r*mysalength)/(pi*((((mysaD/2)+space_p1)^2)-((mysaD/2)^2)));
+	r_pn2=(r*flutlength)/(pi*((((flutD/2)+space_p2)^2)-((flutD/2)^2)));
+	r_px=(r*interlength)/(pi*((((axonD/2)+space_i)^2)-((axonD/2)^2)));
     
     
     
     %how many nodes to simulate
-    N_nodes = 20;
+    N_nodes = 21;
     N_inter = N_nodes-1;
     
     % index values of the dV Vektor
@@ -101,24 +101,37 @@ function [t,Y]=solveOde(dur,IC)
         i_flut_b(4)+(4*N_inter)+1,i_flut_b(4)+(5*N_inter);...
         i_flut_b(4)+(5*N_inter)+1,i_flut_b(4)+(6*N_inter)];
     %Dummy Stimulusvoltage
-    V_e = zeros(i_inter_b(6,2),1);
-    
-    
-    %Dummy IC
-%     IC = [ones(N_nodes,1)*v_init;zeros((N_nodes)*4,1); ...
-%         ones((N_nodes-1)*2,1) * v_init; ...
-%         ones((N_nodes-1)*2,1)*v_init;zeros((N_nodes-1)*2,1); ... 
-%         ones((N_nodes-1)*6,1)*v_init;...
-%         zeros(10*N_inter,1)];
+    V_e = zeros(i_inter(6,2),1);
+    V_stim = zeros(i_inter(6,2),1);
+    q = -80;
+    xe = 14000;
+    ye = 5000;
+    V_stim(1:N_nodes) = electrode(q,xe,ye,((1:N_nodes)-1)*deltax,zeros(1,N_nodes));
+    V_stim(i_mysa(1):i_mysa(2)) = electrode(q,xe,ye,((1:N_inter)-1)*deltax+mysalength/2,zeros(1,N_inter));
+    V_stim(i_mysa(3):i_mysa(4)) = electrode(q,xe,ye,((1:N_inter))*deltax-mysalength/2,zeros(1,N_inter));
+    V_stim(i_flut(1):i_flut(2)) = electrode(q,xe,ye,((1:N_inter)-1)*deltax+mysalength+flutlength/2,zeros(1,N_inter));
+    V_stim(i_flut(3):i_flut(4)) = electrode(q,xe,ye,((1:N_inter))*deltax-mysalength-flutlength/2,zeros(1,N_inter));
+    V_stim(i_inter(1,1):i_inter(1,2)) = electrode(q,xe,ye,((1:N_inter)-1)*deltax+mysalength+flutlength+interlength/2,zeros(1,N_inter));
+    V_stim(i_inter(2,1):i_inter(2,2)) = electrode(q,xe,ye,((1:N_inter)-1)*deltax+mysalength+flutlength+3*interlength/2,zeros(1,N_inter));
+    V_stim(i_inter(3,1):i_inter(3,2)) = electrode(q,xe,ye,((1:N_inter)-1)*deltax+mysalength+flutlength+5*interlength/2,zeros(1,N_inter));
+    V_stim(i_inter(4,1):i_inter(4,2)) = electrode(q,xe,ye,((1:N_inter)-1)*deltax+mysalength+flutlength+7*interlength/2,zeros(1,N_inter));
+    V_stim(i_inter(5,1):i_inter(5,2)) = electrode(q,xe,ye,((1:N_inter)-1)*deltax+mysalength+flutlength+9*interlength/2,zeros(1,N_inter));
+    V_stim(i_inter(6,1):i_inter(6,2)) = electrode(q,xe,ye,((1:N_inter)-1)*deltax+mysalength+flutlength+11*interlength/2,zeros(1,N_inter));
+    clf();
+    V_stim = V_stim.*10e3;
+    figure(2);
+    plot(1:N_nodes,V_stim(1:N_nodes));
+    hold off;
     if (exist('IC','var') == 0)
         IC = zeros(i_inter_b(6,2),1);
     end
     if (exist('dur','var')==0)
         dur = 10;
     end
+    
+    
     [t,Y] = ode15s(@odeMcIntyr, [0,dur], IC);
 
-    clf();
     figure(1);
     for i = 1:N_nodes
         V(i,:) = Y(:,i) - 40*i;
@@ -128,10 +141,10 @@ function [t,Y]=solveOde(dur,IC)
     % odeMcIntyr: calculates the first derivative of all parameters of the
     %             McIntyre nerve model
     function dY = odeMcIntyr(t,Y)
-        if mod(t,100) < .3
-            V_e(1) = 50;
+        if mod(t,100) < 1
+            V_e = V_stim;
         else
-            V_e(1) = 0;
+            V_e = zeros(i_inter(6,2),1);
         end
         dY = zeros(length(Y),1);
         inter = zeros(N_inter,6);
@@ -323,21 +336,21 @@ function [t,Y]=solveOde(dur,IC)
     % flut: simple flut current
     function I = flut(V)
         g=g_flut;
-        e=-80;
+        e=vrest;
         I = passiveCurrent(V,g,e);
     end
     
     % mysa: simple mysa current
     function I = mysa(V)
         g=g_mysa;
-        e=-80;
+        e=vrest;
         I = passiveCurrent(V,g,e);
     end
 
     % inter: currents of the internode
     function I = internodes(V)
         g=g_inter;
-        e=-80;
+        e=vrest;
         I = passiveCurrent(V,g,e);
     end
 
@@ -350,6 +363,12 @@ function [t,Y]=solveOde(dur,IC)
     %       alpha, beta and the previous value
     function dp = dpdt(alpha, beta, para)
         dp = alpha.*(1-para)-beta.*para;
+    end
+
+
+    function V = electrode(q,xe,ye,x,y )
+        d = sqrt((xe-x).^2+(ye-y).^2);
+        V = q./(4.*pi.*d);
     end
 
 end
