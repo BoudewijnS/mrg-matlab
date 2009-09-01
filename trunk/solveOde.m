@@ -1,4 +1,4 @@
-function [t,Y]=solveOde(dur,IC)
+function [t,Y,xs]=solveOde(dur,IC)
 
     % parameters
     % ----------------------------------------------------------------
@@ -13,33 +13,33 @@ function [t,Y]=solveOde(dur,IC)
     e_k = -90.0;
     e_l	= -90.0;
 
-    r = 0.07;           % specific resistivity 
+    r = 70;           % specific resistivity 
     c = 2;             % specific capacity [muF/cm^2]
     rhoa=0.7e6;         %Ohm um
     mycm=0.1 ;
-	mygm=0.001;
+	mygm=1;
     k = 1;               % 37?C  k=3^(0.1*T-3.7)
     V_fem = 50;          % Voltage applied in FEM simulation [V]
     polarity = -1;       % -1/+1 ... neg./pos. active electrode
     % ----------------------------------------------------------------
-    mysalength=3.0; 
-	nodelength=1.0;
+    mysalength=3.0e-4; 
+	nodelength=1.0e-4;
     vrest = -80; %Initial Voltage
     % Parameters from neuron file with fiberD 14 (needs to be corrected)
-    fiberD=14.0;
-    g=0.739 ;
-    axonD=10.4 ;
-    nodeD=4.7 ;
-    mysaD=4.7 ;
-    flutD=10.4 ;
-    space_p1=0.002;
-    space_p2=0.004;
-    space_i=0.004;
-    deltax=1400 ;
+    fiberD=14.0e-4;
+    
+    axonD=10.4e-4 ;
+    nodeD=4.7e-4 ;
+    mysaD=4.7e-4 ;
+    flutD=10.4e-4 ;
+    space_p1=0.002e-4;
+    space_p2=0.004e-4;
+    space_i=0.004e-4;
+    deltax=1400e-4 ;
     nl = 140;
     xg = mygm/(nl*2);   %g for membrane
     xc = mycm/(nl*2);   %c for mambrane
-    flutlength=56;
+    flutlength=56e-4;
     interlength=(deltax-nodelength-(2*mysalength)-(2*flutlength))/6;
     
     c_mysa = c*mysaD*pi*mysalength;
@@ -51,9 +51,22 @@ function [t,Y]=solveOde(dur,IC)
     c_flut_m = mycm/nl*flutD*pi*flutlength;
     c_inter_m = mycm/nl*axonD*pi*interlength;
     
-    g_mysa = 0.001.*mysaD./fiberD;
-    g_flut = 0.0001.*flutD./fiberD;
-    g_inter = 0.0001.*axonD./fiberD;
+    g_mysa_m = mygm/nl*mysaD*pi*mysalength;
+    g_flut_m = mygm/nl*flutD*pi*flutlength;
+    g_inter_m = mygm/nl*axonD*pi*interlength;
+    
+%     
+%     g_mysa = 0.001.*mysaD./fiberD;
+%     g_flut = 0.0001.*flutD./fiberD;
+%     g_inter = 0.0001.*axonD./fiberD;
+    
+    g_mysa = 1*mysaD*pi*mysalength;
+    g_flut = 0.1*flutD*pi*flutlength;
+    g_inter = 0.1*axonD*pi*interlength;
+    g_nap = g_nap*nodeD*pi*nodelength;
+    g_naf = g_naf*nodeD*pi*nodelength;
+    g_k = g_k*nodeD*pi*nodelength;
+    g_l = g_l*nodeD*pi*nodelength;
     
     
     r_mysa = r*4*mysalength/(mysaD^2*pi);
@@ -103,9 +116,9 @@ function [t,Y]=solveOde(dur,IC)
     %Dummy Stimulusvoltage
     V_e = zeros(i_inter(6,2),1);
     V_stim = zeros(i_inter(6,2),1);
-    q = -80;
-    xe = 14000;
-    ye = 5000;
+    q = -1000;
+    xe = 14000e-4;
+    ye = 5000e-4;
     V_stim(1:N_nodes) = electrode(q,xe,ye,((1:N_nodes)-1)*deltax,zeros(1,N_nodes));
     V_stim(i_mysa(1):i_mysa(2)) = electrode(q,xe,ye,((1:N_inter)-1)*deltax+mysalength/2,zeros(1,N_inter));
     V_stim(i_mysa(3):i_mysa(4)) = electrode(q,xe,ye,((1:N_inter))*deltax-mysalength/2,zeros(1,N_inter));
@@ -117,34 +130,46 @@ function [t,Y]=solveOde(dur,IC)
     V_stim(i_inter(4,1):i_inter(4,2)) = electrode(q,xe,ye,((1:N_inter)-1)*deltax+mysalength+flutlength+7*interlength/2,zeros(1,N_inter));
     V_stim(i_inter(5,1):i_inter(5,2)) = electrode(q,xe,ye,((1:N_inter)-1)*deltax+mysalength+flutlength+9*interlength/2,zeros(1,N_inter));
     V_stim(i_inter(6,1):i_inter(6,2)) = electrode(q,xe,ye,((1:N_inter)-1)*deltax+mysalength+flutlength+11*interlength/2,zeros(1,N_inter));
+    
     clf();
-    V_stim = V_stim.*10e3;
     figure(2);
     plot(1:N_nodes,V_stim(1:N_nodes));
     hold off;
     if (exist('IC','var') == 0)
         IC = zeros(i_inter_b(6,2),1);
+        IC(1:N_nodes) = -80;
+        IC(i_mysa(1):i_flut(4)) = -80;
+        IC(i_inter(1,1):i_inter(6,2)) = -80;
+        stim = 0;
     end
     if (exist('dur','var')==0)
         dur = 10;
     end
     
-    
+    xs=[];
     [t,Y] = ode15s(@odeMcIntyr, [0,dur], IC);
 
     figure(1);
     for i = 1:N_nodes
-        V(i,:) = Y(:,i) - 40*i;
+        V(i,:) = Y(:,i) - 40*(i-1);
     end
     plot(t,V);
     hold off;
+    figure(3);
+    plot(xs(:,4),((xs(:,1)-xs(:,2))./(r_node+r_mysa))./c_node,xs(:,4),((xs(:,1)-xs(:,3))./(r_node+r_mysa))./c_node);
+    figure(4);
+    plot(t,Y(:,11));
+    
     % odeMcIntyr: calculates the first derivative of all parameters of the
     %             McIntyre nerve model
     function dY = odeMcIntyr(t,Y)
-        if mod(t,100) < 1
-            V_e = V_stim;
-        else
-            V_e = zeros(i_inter(6,2),1);
+        if exist('stim','var') ==0
+            if mod(t,10) < 0.2
+                V_e = V_stim;
+                %V_e(11) = -1e2;
+            else
+                V_e = zeros(i_inter(6,2),1);
+            end
         end
         dY = zeros(length(Y),1);
         inter = zeros(N_inter,6);
@@ -168,17 +193,35 @@ function [t,Y]=solveOde(dur,IC)
         inter(:,5) = Y(i_inter(5,1):i_inter(5,2));
         inter(:,6) = Y(i_inter(6,1):i_inter(6,2));
         
-        mysa_l_b = Y(i_mysa_b(1):i_mysa_b(2));
-        mysa_r_b = Y(i_mysa_b(3):i_mysa_b(4));
-        flut_l_b = Y(i_flut_b(1):i_flut_b(2));
-        flut_r_b = Y(i_flut_b(3):i_flut_b(4));
-        inter_b(:,1) = Y(i_inter_b(1,1):i_inter_b(1,2));
-        inter_b(:,2) = Y(i_inter_b(2,1):i_inter_b(2,2));
-        inter_b(:,3) = Y(i_inter_b(3,1):i_inter_b(3,2));
-        inter_b(:,4) = Y(i_inter_b(4,1):i_inter_b(4,2));
-        inter_b(:,5) = Y(i_inter_b(5,1):i_inter_b(5,2));
-        inter_b(:,6) = Y(i_inter_b(6,1):i_inter_b(6,2));  
+        mysa_l_b = Y(i_mysa_b(1):i_mysa_b(2))+V_e(i_mysa(1):i_mysa(2));
+        mysa_r_b = Y(i_mysa_b(3):i_mysa_b(4))+V_e(i_mysa(3):i_mysa(4));
+        flut_l_b = Y(i_flut_b(1):i_flut_b(2))+V_e(i_flut(1):i_flut(2));
+        flut_r_b = Y(i_flut_b(3):i_flut_b(4))+V_e(i_flut(3):i_flut(4));
+        inter_b(:,1) = Y(i_inter_b(1,1):i_inter_b(1,2))+ ...
+            V_e(i_inter(1,1):i_inter(1,2));
+        inter_b(:,2) = Y(i_inter_b(2,1):i_inter_b(2,2))+ ...
+            V_e(i_inter(2,1):i_inter(2,2));
+        inter_b(:,3) = Y(i_inter_b(3,1):i_inter_b(3,2))+ ...
+            V_e(i_inter(3,1):i_inter(3,2));
+        inter_b(:,4) = Y(i_inter_b(4,1):i_inter_b(4,2))+ ...
+            V_e(i_inter(4,1):i_inter(4,2));
+        inter_b(:,5) = Y(i_inter_b(5,1):i_inter_b(5,2))+ ...
+            V_e(i_inter(5,1):i_inter(5,2));
+        inter_b(:,6) = Y(i_inter_b(6,1):i_inter_b(6,2))+ ...
+            V_e(i_inter(6,1):i_inter(6,2));  
+
+%         mysa_l_b = Y(i_mysa_b(1):i_mysa_b(2));
+%         mysa_r_b = Y(i_mysa_b(3):i_mysa_b(4));
+%         flut_l_b = Y(i_flut_b(1):i_flut_b(2));
+%         flut_r_b = Y(i_flut_b(3):i_flut_b(4));
+%         inter_b(:,1) = Y(i_inter_b(1,1):i_inter_b(1,2));
+%         inter_b(:,2) = Y(i_inter_b(2,1):i_inter_b(2,2));
+%         inter_b(:,3) = Y(i_inter_b(3,1):i_inter_b(3,2));
+%         inter_b(:,4) = Y(i_inter_b(4,1):i_inter_b(4,2));
+%         inter_b(:,5) = Y(i_inter_b(5,1):i_inter_b(5,2));
+%         inter_b(:,6) = Y(i_inter_b(6,1):i_inter_b(6,2));  
         
+        xs=[xs;V_e(11),mysa_l_b(11),V_e(i_mysa(1)+11),t];
         
         %axonnode current
         % what to do at first and last node??
@@ -202,16 +245,16 @@ function [t,Y]=solveOde(dur,IC)
                           flut_r_b,r_mysa,r_node,r_flut,c_mysa);
         
         %currents between myelin and node at mysa regions
-        Imy_l_b = -Imy_l + passiveCurrent(mysa_l_b,xg,...
+        Imy_l_b = passiveMyelin(mysa_l_b,g_mysa_m,...
             V_e(i_mysa(1):i_mysa(2)));
-        Imy_r_b = -Imy_r + passiveCurrent(mysa_r_b,xg,...
+        Imy_r_b = passiveMyelin(mysa_r_b,g_mysa_m,...
             V_e(i_mysa(3):i_mysa(4)));
         
         dmysa_l_b = extracellular(Imy_l_b,mysa_l_b,V_e(1:N_inter),flut_l_b, ...
-                            r_pn1,r_pn0,r_pn2,c_mysa_m);
+                            r_pn1,r_pn0,r_pn2,c_mysa_m,Imy_l,c_mysa);
         
         dmysa_r_b = extracellular(Imy_r_b,mysa_r_b,V_e(2:N_nodes),flut_r_b, ...
-                            r_pn1,r_pn0,r_pn2,c_mysa_m);
+                            r_pn1,r_pn0,r_pn2,c_mysa_m,Imy_r,c_mysa);
                         
         %FLUT currents
         Ifl_l = flut(flut_l);
@@ -226,27 +269,27 @@ function [t,Y]=solveOde(dur,IC)
         dflut_l = cableEq(Ifl_l,flut_l,mysa_l,inter(:,1), ...
                           flut_l_b,mysa_l_b,inter_b(:,1), ...
                           r_flut,r_mysa,r_inter,c_flut);
-        dflut_r = cableEq(Ifl_l,flut_r,mysa_r,inter(:,6), ...
+        dflut_r = cableEq(Ifl_r,flut_r,mysa_r,inter(:,6), ...
                           flut_r_b,mysa_r_b,inter_b(:,6), ...
                           r_flut,r_mysa,r_inter,c_flut);
         
         %currents between myelin and node at flut regions
-        Ifl_l_b = -Ifl_l + passiveCurrent(flut_l_b,xg, ...
+        Ifl_l_b = passiveMyelin(flut_l_b,g_flut_m, ...
                                             V_e(i_flut(1):i_flut(2)));
-        Ifl_r_b = -Ifl_r + passiveCurrent(flut_r_b,xg, ...
+        Ifl_r_b = passiveMyelin(flut_r_b,g_flut_m, ...
                                             V_e(i_flut(3):i_flut(4)));
         
         dflut_l_b = extracellular(Ifl_l_b,flut_l_b,mysa_l_b,inter_b(:,1), ...
-                    r_pn2,r_pn1,r_px,c_flut_m);
+                    r_pn2,r_pn1,r_px,c_flut_m,Ifl_l,c_flut);
         dflut_r_b = extracellular(Ifl_r_b,flut_r_b,mysa_r_b,inter_b(:,1), ...
-                   r_pn2,r_pn1,r_px,c_flut_m);              
+                   r_pn2,r_pn1,r_px,c_flut_m,Ifl_r,c_flut);              
         
         %internode currents
         Iin = internodes(inter);
         inter2 = [flut_l,inter,flut_r];
         inter2b = [flut_l_b,inter_b,flut_r_b];
         
-        Vi = [i_flut(1:2);i_inter;i_flut(3:4)];
+        
         res = ones(6,1)*r_inter;
         res = [r_flut;res;r_flut];
         dinter = zeros(N_inter,6);
@@ -256,18 +299,18 @@ function [t,Y]=solveOde(dur,IC)
                         inter2b(:,j+1),res(j),res(j-1),res(j+1),c_inter);
         end
         
-        Iin_b = passiveCurrent(inter_b,xg,[V_e(i_inter(1,1):i_inter(1,2)),...
+        Iin_b = passiveMyelin(inter_b,g_inter_m,[V_e(i_inter(1,1):i_inter(1,2)),...
             V_e(i_inter(2,1):i_inter(2,2)),V_e(i_inter(3,1):i_inter(3,2)),...
             V_e(i_inter(4,1):i_inter(4,2)),V_e(i_inter(5,1):i_inter(5,2)),...
             V_e(i_inter(6,1):i_inter(6,2))]);
-        Iin_b = -Iin + Iin_b;
+        %Iin_b = Iin_b;
         res = [r_pn2;ones(6,1)*r_px;r_pn2];
         
         dinter_b = zeros(N_inter,6);
         for j = 2:7
             dinter_b(:,j-1) = extracellular(Iin_b(:,j-1),inter2b(:,j),...
                         inter2b(:,j-1),inter2b(:,j+1), ...
-                        res(j),res(j-1),res(j+1),c_inter_m);
+                        res(j),res(j-1),res(j+1),c_inter_m,Iin(:,j-1),c_inter);
         end
         
         %finally assemble derivatives into an
@@ -288,8 +331,9 @@ function [t,Y]=solveOde(dur,IC)
 
     % extracellular: extracellular currents similar to the Neuron function
     %                with the same name
-    function dV = extracellular(I,V,V1,V2,Ra,Ra1,Ra2,C)
-       dV = (-I + (V1-V)./(Ra1./2+Ra./2) + (V2-V)./(Ra2./2+Ra./2))./C;
+    function dV = extracellular(I,V,V1,V2,Ra,Ra1,Ra2,C,Imem,Cmem)
+       dV = (-I + (V1-V)./(Ra1./2+Ra./2) + (V2-V)./(Ra2./2+Ra./2))./C+...
+           Imem./Cmem;
        
     end
    
@@ -357,6 +401,11 @@ function [t,Y]=solveOde(dur,IC)
     % passiveCurrent: calculation of the passive current
     function I = passiveCurrent(V,g,e)
         I = g.*(V-e);
+    end
+
+    % passiveCurrent: calculation of the passive current
+    function I = passiveMyelin(V,g,e)
+        I=passiveCurrent(V,g,e);
     end
 
     % dpdt: calculates the derivative of the of the parameter according to
