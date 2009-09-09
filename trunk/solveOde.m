@@ -117,7 +117,7 @@ function [t,Y,xs]=solveOde(dur,IC)
     V_e = zeros(i_inter(6,2),1);
     V_stim = zeros(i_inter(6,2),1);
     q = -1000;
-    xe = 14000e-4;
+    xe = 5000e-4;
     ye = 5000e-4;
     V_stim(1:N_nodes) = electrode(q,xe,ye,((1:N_nodes)-1)*deltax,zeros(1,N_nodes));
     V_stim(i_mysa(1):i_mysa(2)) = electrode(q,xe,ye,((1:N_inter)-1)*deltax+mysalength/2,zeros(1,N_inter));
@@ -158,15 +158,17 @@ function [t,Y,xs]=solveOde(dur,IC)
     figure(3);
     plot(xs(:,4),((xs(:,1)-xs(:,2))./(r_node+r_mysa))./c_node,xs(:,4),((xs(:,1)-xs(:,3))./(r_node+r_mysa))./c_node);
     figure(4);
-    plot(t,Y(:,11));
+    plot(t,Y(:,5));
     
     % odeMcIntyr: calculates the first derivative of all parameters of the
     %             McIntyre nerve model
     function dY = odeMcIntyr(t,Y)
         if exist('stim','var') ==0
-            if mod(t,10) < 0.2
+            if mod(t,10) < 1
+                %
                 V_e = V_stim;
-                %V_e(11) = -1e2;
+                %Y(11) = Y(11) -30;
+                %V_e(11) = -1e1;
             else
                 V_e = zeros(i_inter(6,2),1);
             end
@@ -193,33 +195,33 @@ function [t,Y,xs]=solveOde(dur,IC)
         inter(:,5) = Y(i_inter(5,1):i_inter(5,2));
         inter(:,6) = Y(i_inter(6,1):i_inter(6,2));
         
-        mysa_l_b = Y(i_mysa_b(1):i_mysa_b(2))+V_e(i_mysa(1):i_mysa(2));
-        mysa_r_b = Y(i_mysa_b(3):i_mysa_b(4))+V_e(i_mysa(3):i_mysa(4));
-        flut_l_b = Y(i_flut_b(1):i_flut_b(2))+V_e(i_flut(1):i_flut(2));
-        flut_r_b = Y(i_flut_b(3):i_flut_b(4))+V_e(i_flut(3):i_flut(4));
-        inter_b(:,1) = Y(i_inter_b(1,1):i_inter_b(1,2))+ ...
-            V_e(i_inter(1,1):i_inter(1,2));
-        inter_b(:,2) = Y(i_inter_b(2,1):i_inter_b(2,2))+ ...
-            V_e(i_inter(2,1):i_inter(2,2));
-        inter_b(:,3) = Y(i_inter_b(3,1):i_inter_b(3,2))+ ...
-            V_e(i_inter(3,1):i_inter(3,2));
-        inter_b(:,4) = Y(i_inter_b(4,1):i_inter_b(4,2))+ ...
-            V_e(i_inter(4,1):i_inter(4,2));
-        inter_b(:,5) = Y(i_inter_b(5,1):i_inter_b(5,2))+ ...
-            V_e(i_inter(5,1):i_inter(5,2));
-        inter_b(:,6) = Y(i_inter_b(6,1):i_inter_b(6,2))+ ...
-            V_e(i_inter(6,1):i_inter(6,2));  
+%         mysa_l_b = Y(i_mysa_b(1):i_mysa_b(2))+V_e(i_mysa(1):i_mysa(2));
+%         mysa_r_b = Y(i_mysa_b(3):i_mysa_b(4))+V_e(i_mysa(3):i_mysa(4));
+%         flut_l_b = Y(i_flut_b(1):i_flut_b(2))+V_e(i_flut(1):i_flut(2));
+%         flut_r_b = Y(i_flut_b(3):i_flut_b(4))+V_e(i_flut(3):i_flut(4));
+%         inter_b(:,1) = Y(i_inter_b(1,1):i_inter_b(1,2))+ ...
+%             V_e(i_inter(1,1):i_inter(1,2));
+%         inter_b(:,2) = Y(i_inter_b(2,1):i_inter_b(2,2))+ ...
+%             V_e(i_inter(2,1):i_inter(2,2));
+%         inter_b(:,3) = Y(i_inter_b(3,1):i_inter_b(3,2))+ ...
+%             V_e(i_inter(3,1):i_inter(3,2));
+%         inter_b(:,4) = Y(i_inter_b(4,1):i_inter_b(4,2))+ ...
+%             V_e(i_inter(4,1):i_inter(4,2));
+%         inter_b(:,5) = Y(i_inter_b(5,1):i_inter_b(5,2))+ ...
+%             V_e(i_inter(5,1):i_inter(5,2));
+%         inter_b(:,6) = Y(i_inter_b(6,1):i_inter_b(6,2))+ ...
+%             V_e(i_inter(6,1):i_inter(6,2));  
 
-%         mysa_l_b = Y(i_mysa_b(1):i_mysa_b(2));
-%         mysa_r_b = Y(i_mysa_b(3):i_mysa_b(4));
-%         flut_l_b = Y(i_flut_b(1):i_flut_b(2));
-%         flut_r_b = Y(i_flut_b(3):i_flut_b(4));
-%         inter_b(:,1) = Y(i_inter_b(1,1):i_inter_b(1,2));
-%         inter_b(:,2) = Y(i_inter_b(2,1):i_inter_b(2,2));
-%         inter_b(:,3) = Y(i_inter_b(3,1):i_inter_b(3,2));
-%         inter_b(:,4) = Y(i_inter_b(4,1):i_inter_b(4,2));
-%         inter_b(:,5) = Y(i_inter_b(5,1):i_inter_b(5,2));
-%         inter_b(:,6) = Y(i_inter_b(6,1):i_inter_b(6,2));  
+        mysa_l_b = Y(i_mysa_b(1):i_mysa_b(2));
+        mysa_r_b = Y(i_mysa_b(3):i_mysa_b(4));
+        flut_l_b = Y(i_flut_b(1):i_flut_b(2));
+        flut_r_b = Y(i_flut_b(3):i_flut_b(4));
+        inter_b(:,1) = Y(i_inter_b(1,1):i_inter_b(1,2));
+        inter_b(:,2) = Y(i_inter_b(2,1):i_inter_b(2,2));
+        inter_b(:,3) = Y(i_inter_b(3,1):i_inter_b(3,2));
+        inter_b(:,4) = Y(i_inter_b(4,1):i_inter_b(4,2));
+        inter_b(:,5) = Y(i_inter_b(5,1):i_inter_b(5,2));
+        inter_b(:,6) = Y(i_inter_b(6,1):i_inter_b(6,2));  
         
         xs=[xs;V_e(11),mysa_l_b(11),V_e(i_mysa(1)+11),t];
         
@@ -229,7 +231,7 @@ function [t,Y,xs]=solveOde(dur,IC)
                                                 para_h,para_p,para_s);
         dnode = cableEq(Iax,node,[node(1);mysa_l],...
             [mysa_r;node(N_nodes)],V_e(i_node(1):i_node(2)),...
-            [V_e(1);mysa_l_b],[mysa_r_b;V_e(N_nodes)],...
+            [V_e(1);V_e(i_mysa(1):i_mysa(2))],[V_e(i_mysa(3):i_mysa(4));V_e(N_nodes)],...
             r_node,r_mysa,r_mysa,c_node);
         
         
@@ -238,11 +240,11 @@ function [t,Y,xs]=solveOde(dur,IC)
         Imy_r = mysa(mysa_r);
         
         dmysa_l = cableEq(Imy_l,mysa_l,node(1:N_inter),flut_l, ...
-                          mysa_l_b,V_e(i_node(1):i_node(2)-1), ...
-                          flut_l_b,r_mysa,r_node,r_flut,c_mysa);
+                          V_e(i_mysa(1):i_mysa(2)),V_e(i_node(1):i_node(2)-1), ...
+                          V_e(i_flut(1):i_flut(2)),r_mysa,r_node,r_flut,c_mysa);
         dmysa_r = cableEq(Imy_r,mysa_r,node(2:N_nodes),flut_r, ...
-                          mysa_r_b,V_e(i_node(1)+1:i_node(2)), ...
-                          flut_r_b,r_mysa,r_node,r_flut,c_mysa);
+                          V_e(i_mysa(3):i_mysa(4)),V_e(i_node(1)+1:i_node(2)), ...
+                          V_e(i_flut(3):i_flut(4)),r_mysa,r_node,r_flut,c_mysa);
         
         %currents between myelin and node at mysa regions
         Imy_l_b = passiveMyelin(mysa_l_b,g_mysa_m,...
@@ -267,10 +269,10 @@ function [t,Y,xs]=solveOde(dur,IC)
         Ifl_r = Ifl_r + Ifl_rp;
         
         dflut_l = cableEq(Ifl_l,flut_l,mysa_l,inter(:,1), ...
-                          flut_l_b,mysa_l_b,inter_b(:,1), ...
+                          V_e(i_flut(1):i_flut(2)),V_e(i_mysa(1):i_mysa(2)),V_e(i_inter(1,1):i_inter(1,2)), ...
                           r_flut,r_mysa,r_inter,c_flut);
         dflut_r = cableEq(Ifl_r,flut_r,mysa_r,inter(:,6), ...
-                          flut_r_b,mysa_r_b,inter_b(:,6), ...
+                          V_e(i_flut(3):i_flut(4)),V_e(i_mysa(3):i_mysa(4)),V_e(i_inter(6,1):i_inter(6,2)), ...
                           r_flut,r_mysa,r_inter,c_flut);
         
         %currents between myelin and node at flut regions
@@ -288,6 +290,14 @@ function [t,Y,xs]=solveOde(dur,IC)
         Iin = internodes(inter);
         inter2 = [flut_l,inter,flut_r];
         inter2b = [flut_l_b,inter_b,flut_r_b];
+        inter2e = [V_e(i_flut(1):i_flut(2)),...
+            V_e(i_inter(1,1):i_inter(1,2)),...
+            V_e(i_inter(2,1):i_inter(2,2)),...
+            V_e(i_inter(3,1):i_inter(3,2)),...
+            V_e(i_inter(4,1):i_inter(4,2)),...
+            V_e(i_inter(5,1):i_inter(5,2)),...
+            V_e(i_inter(6,1):i_inter(6,2)),...
+            V_e(i_flut(3):i_flut(4))];
         
         
         res = ones(6,1)*r_inter;
@@ -295,8 +305,8 @@ function [t,Y,xs]=solveOde(dur,IC)
         dinter = zeros(N_inter,6);
         for j = 2:7
             dinter(:,j-1) = cableEq(Iin(:,j-1),inter2(:,j),inter2(:,j-1),...
-                        inter2(:,j+1),inter2b(:,j),inter2b(:,j-1),...
-                        inter2b(:,j+1),res(j),res(j-1),res(j+1),c_inter);
+                        inter2(:,j+1),inter2e(:,j),inter2e(:,j-1),...
+                        inter2e(:,j+1),res(j),res(j-1),res(j+1),c_inter);
         end
         
         Iin_b = passiveMyelin(inter_b,g_inter_m,[V_e(i_inter(1,1):i_inter(1,2)),...
@@ -332,8 +342,7 @@ function [t,Y,xs]=solveOde(dur,IC)
     % extracellular: extracellular currents similar to the Neuron function
     %                with the same name
     function dV = extracellular(I,V,V1,V2,Ra,Ra1,Ra2,C,Imem,Cmem)
-       dV = (-I + (V1-V)./(Ra1./2+Ra./2) + (V2-V)./(Ra2./2+Ra./2))./C+...
-           Imem./Cmem;
+       dV = (-I+Imem + (V1-V)./(Ra1./2+Ra./2) + (V2-V)./(Ra2./2+Ra./2))./C;
        
     end
    
