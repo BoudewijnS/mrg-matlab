@@ -179,6 +179,12 @@ function [ t,Y ] = mcintyre(dur, IC)
         V(i,:) = Y(:,i) - 40*(i-1);
     end
     plot(t,V);
+    figure(4);
+    
+    for i = 1:N_nodes
+        V(i,:) = Y(:,i) - 5*(i-1);
+    end
+    plot(t,V);
     figure(3);
     plot(t,Y(:,1),t,Y(:,20));
     
@@ -186,10 +192,10 @@ function [ t,Y ] = mcintyre(dur, IC)
         if exist('stim','var') ==0
             if mod(t,100) < 0.5
                 %
-                %V_e = V_stim;
+                V_e = V_stim;
                 %Y(11) = Y(11) -30;
                 %V_e(11) = -10;
-                Istim(1) = 100;
+                %Istim(1) = 100;
             else
                 V_e = zeros(i_inter(6,2),1);
                 Istim(1) = 0;
@@ -348,11 +354,12 @@ function [ t,Y ] = mcintyre(dur, IC)
         IPas = gmem.*(V - epas);
         Imyelin = gmy.*(Vp - Vext);
         ICmem = -IPas -Iaxonal-Iext;
-        ICmyelin = -Iaxonal+IPas-Imyelin -Iperiaxonal;
+        ICmyelin = IPas - Imyelin -Iperiaxonal;
         
         dV = (1./cmem).*(ICmem);
+        %dVp = (1./cmy).*(ICmyelin);
         dVp = (1./cmy).*(-Imyelin)+(1./(cmy+cmem)).*(-Iperiaxonal) + ...
-            (1./cmem).*(-IPas);
+            (1./cmem).*(IPas);
                                 
     end
 
