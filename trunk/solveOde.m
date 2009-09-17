@@ -272,7 +272,7 @@ function [t,Y,xs]=solveOde(dur,IC)
                 %V_e = V_stim;
                 %Y(11) = Y(11) -30;
                 %V_e(11) = -10;
-                Istim(11) = 100;
+                %Istim(11) = 0.00010;
             else
                 V_e = zeros(i_inter(6,2),1);
                 Istim(11) = 0;
