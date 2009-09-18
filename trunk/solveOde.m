@@ -272,7 +272,7 @@ function [t,Y,xs]=solveOde(dur,IC)
                 %V_e = V_stim;
                 %Y(11) = Y(11) -30;
                 %V_e(11) = -10;
-                %Istim(11) = 0.00010;
+                Istim(11) = 100000;
             else
                 V_e = zeros(i_inter(6,2),1);
                 Istim(11) = 0;
@@ -437,9 +437,9 @@ function [t,Y,xs]=solveOde(dur,IC)
     % extracellular: extracellular currents similar to the Neuron function
     %                with the same name
     function dV = extracellular(I,V,V1,V2,Ra,Ra1,Ra2,C,Imem,Cmem)
-       %dV = (-I + Imem+ (V1-V)./(Ra1./2+Ra./2) + (V2-V)./(Ra2./2+Ra./2))./C;
-       dV = -I./C + Imem./Cmem + ...
-           ((V1-V)./(Ra1./2+Ra./2) + (V2-V)./(Ra2./2+Ra./2))./(C+Cmem);
+       dV = (-I + Imem+ (V1-V)./(Ra1./2+Ra./2) + (V2-V)./(Ra2./2+Ra./2))./C;
+       %dV = -I./C + Imem./Cmem + ...
+       %    ((V1-V)./(Ra1./2+Ra./2) + (V2-V)./(Ra2./2+Ra./2))./(C+Cmem);
     end
    
     

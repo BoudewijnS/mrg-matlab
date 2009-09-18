@@ -6,7 +6,7 @@ function [ t,Y ] = mcintyre(dur, IC)
     space_p1=0.002;  
     space_p2=0.004;
     space_i=0.004;
-    rhoa=7e8;         %Ohm*um
+    rhoa=7e5;         %Ohm*um
     mycm=0.1;           %uF/cm2
     mygm=0.001;         %S/cm2
     c=2;                %uF/cm2
@@ -139,7 +139,7 @@ function [ t,Y ] = mcintyre(dur, IC)
     %Dummy Stimulusvoltage
     V_e = zeros(i_inter(6,2),1);
     V_stim = zeros(i_inter(6,2),1);
-    q = 700000;
+    q = 3000000;
     xe = 14000;
     ye = 5000;
     V_stim(1:N_nodes) = electrode(q,xe,ye,((1:N_nodes)-1)*deltax,zeros(1,N_nodes));
@@ -190,12 +190,12 @@ function [ t,Y ] = mcintyre(dur, IC)
     
     function dY = odeMcIntyr(t,Y)
         if exist('stim','var') ==0
-            if mod(t,100) < 0.5
+            if mod(t,100) < 1
                 %
-                V_e = V_stim;
+                %V_e = V_stim;
                 %Y(11) = Y(11) -30;
                 %V_e(11) = -10;
-                %Istim(1) = 100;
+                Istim(1) = 50000;
             else
                 V_e = zeros(i_inter(6,2),1);
                 Istim(1) = 0;
