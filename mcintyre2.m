@@ -1,111 +1,7 @@
 function [ t,Y ] = mcintyre(dur, IC)
-%     vrest = -80;
-%     fiberD=10.0;        %um
-%     paralength1=3;      %um  
-%     nodelength=1.0;
-%     space_p1=0.002;  
-%     space_p2=0.004;
-%     space_i=0.004;
-%     rhoa=7e8;         %Ohm*um
-%     mycm=0.1;           %uF/cm2
-%     mygm=0.001;         %S/cm2
-%     c=2;                %uF/cm2
-% 
-%     g_nap = 0.010;         % sodium channel conductivity [S/cm^2]
-%     g_naf = 3;        %
-%     g_k = 0.080;
-%     g_kf = 0;
-%     g_l = 0.007;           % leak channel conductivity [S/cm^2] 
-%     e_na = 50.0;
-%     e_k = -90.0;
-%     e_l	= -90.0;
-% 
-%     g=0.690; 
-%     axonD=6.9; 
-%     nodeD=3.3; 
-%     paraD1=3.3; 
-%     paraD2=6.9; 
-%     deltax=1150; 
-%     paralength2=46; 
-%     nl=120;
-%     
-%     mysalength = paralength1;
-%     flutlength = paralength2;
-%     
-%     Rpn0=(rhoa*.01)/(pi*((((nodeD/2)+space_p1)^2)-((nodeD/2)^2)));
-%     Rpn1=(rhoa*.01)/(pi*((((paraD1/2)+space_p1)^2)-((paraD1/2)^2)));
-%     Rpn2=(rhoa*.01)/(pi*((((paraD2/2)+space_p2)^2)-((paraD2/2)^2)));
-%     Rpx=(rhoa*.01)/(pi*((((axonD/2)+space_i)^2)-((axonD/2)^2)));
-%     interlength=(deltax-nodelength-(2*paralength1)-(2*paralength2))/6;
-% 
-%     %periaxonal resistivity in GOhm
-%     r_pn0=Rpn0*(nodelength/10000)/1e3;
-%     r_pn1=Rpn1*(paralength1/10000)/1e3;
-%     r_pn2=Rpn2*(paralength2/10000)/1e3;
-%     r_px=Rpx*(interlength/10000)/1e3;
-% 
-%     %surface area in cm2
-%     sa_node = (pi*nodeD*nodelength)/1e8;
-%     sa_mysa = (pi*fiberD*paralength1)/1e8;
-%     sa_flut = (pi*fiberD*paralength2)/1e8;
-%     sa_inter = (pi*fiberD*interlength)/1e8;
-% 
-%     %resistiviy in Ohm*cm
-%     r_node = rhoa/10000;
-%     r_mysa = rhoa*(1/(paraD1/fiberD)^2)/10000;
-%     r_flut = rhoa*(1/(paraD2/fiberD)^2)/10000;
-%     r_inter = rhoa*(1/(axonD/fiberD)^2)/10000;
-% 
-%     %resistiviy in GOhm
-%     r_node = (4*(nodelength/10000)*r_node)/(pi*(nodeD/10000)^2)/1e9;
-%     r_mysa = (4*(paralength1/10000)*r_mysa)/(pi*(fiberD/10000)^2)/1e9;
-%     r_flut = (4*(paralength2/10000)*r_flut)/(pi*(fiberD/10000)^2)/1e9;
-%     r_inter = (4*(interlength/10000)*r_inter)/(pi*(fiberD/10000)^2)/1e9;
-% 
-%     %capacity in uF/cm2
-%     c_node = c;
-%     c_mysa = c*paraD1/fiberD;
-%     c_flut = c*paraD2/fiberD;
-%     c_inter = c*axonD/fiberD;
-% 
-%     %capacity in pF
-%     c_node = c_node*sa_node*1e6;
-%     c_mysa = c_mysa*sa_mysa*1e6;
-%     c_flut = c_flut*sa_flut*1e6;
-%     c_inter = c_inter*sa_inter*1e6;
-% 
-%     %passive conductance in S/cm^2
-%     g_mysa = 0.001*paraD1/fiberD;
-%     g_flut = 0.0001*paraD2/fiberD;
-%     g_inter = 0.0001*axonD/fiberD;
-%     %in nS
-%     g_mysa = g_mysa*sa_mysa*1e9;
-%     g_flut = g_flut*sa_flut*1e9;
-%     g_inter = g_inter*sa_inter*1e9;
-% 
-%     %membrane conductance in S/cm2
-%     xg = 0.001/(nl*2); 
-%     %in nS
-%     g_mysa_m = xg*sa_mysa*1e9;
-%     g_flut_m = xg*sa_flut*1e9;
-%     g_inter_m = xg*sa_inter*1e9;
-% 
-%     %membrane capacity in uF/cm2
-%     xc = 0.1/(nl*2);
-%     %in pF
-%     c_mysa_m = xc*sa_mysa*1e6;
-%     c_flut_m = xc*sa_flut*1e6;
-%     c_inter_m = xc*sa_inter*1e6;
-% 
-%     %nodal conductances
-%     g_nap = g_nap*sa_node*1e9;
-%     g_naf = g_naf*sa_node*1e9;
-%     g_k = g_k*sa_node*1e9;
-%     g_l = g_l*sa_node*1e9;
-
 
     vrest = -80;        %mV
-    fiberD=10.0;        %um
+    fiberD=16.0;        %um
     mysalength=3;       %um  
     nodelength=1.0;     %um
     space_p1=0.002;     %um
@@ -129,13 +25,13 @@ function [ t,Y ] = mcintyre(dur, IC)
     g_p2 = 0.0001;      %um
     g_i = g_p2;         %um
 
-    axonD=6.9;          %um 
-    nodeD=3.3;          %um
-    mysaD=3.3;         %um
-    flutD=6.9;         %um
-    deltax=1150;        %um
-    flutlength=46;      %um
-    nl=120;             %dimensionless
+    axonD=12.7;          %um 
+    nodeD=5.5;          %um
+    mysaD=5.5;         %um
+    flutD=12.7;         %um
+    deltax=1500;        %um
+    flutlength=60;      %um
+    nl=150;             %dimensionless
     interlength=(deltax-nodelength-(2*mysalength)-(2*flutlength))/6;
 
     
@@ -158,7 +54,7 @@ function [ t,Y ] = mcintyre(dur, IC)
     
     
     %how many nodes to simulate
-    N_nodes = 21;
+    N_nodes = 65;
     N_inter = N_nodes-1;
     
     % index values of the dV Vektor
@@ -192,7 +88,7 @@ function [ t,Y ] = mcintyre(dur, IC)
     %Dummy Stimulusvoltage
     V_e = zeros(i_inter(6,2),1);
     V_stim = zeros(i_inter(6,2),1);
-    q = 700000;
+    q = 150000;
     xe = 14000;
     ye = 5000;
     V_stim(1:N_nodes) = electrode(q,xe,ye,((1:N_nodes)-1)*deltax,zeros(1,N_nodes));
@@ -239,17 +135,17 @@ function [ t,Y ] = mcintyre(dur, IC)
     end
     plot(t,V);
     figure(3);
-    plot(t,Y(:,1),t,Y(:,20));
+    plot(t,Y(:,1),t,Y(:,65));
     
     
     function dY = odeMcIntyr(t,Y)
         if exist('stim','var') ==0
-            if mod(t,100) < 0.5
+            if mod(t,100) < 1
                 %
                 %V_e = V_stim;
                 %Y(11) = Y(11) -30;
                 %V_e(11) = -10;
-                Istim(1) = 0.1;
+                Istim(1) = 0.05;
             else
                 V_e = zeros(i_inter(6,2),1);
                 Istim(1) = 0;
@@ -491,7 +387,6 @@ function [ t,Y ] = mcintyre(dur, IC)
        %um and Ohm*cm
        a=pi*diameter^2;
        rax = calcRes(a,length,r);
-       %rax is in GOhm
     end
     
     function rpx = calcResPeriax(diameter, length, space, r)
@@ -514,7 +409,6 @@ function [ t,Y ] = mcintyre(dur, IC)
 
     function c = calcCapacity(diameter, length, cap)
        %um and uF/cm^2
-       cap = cap*1e3;   %nF/cm^2
        cap = cap/1e8;   %uF/um^2
        
        c = cap*diameter*length*pi;
