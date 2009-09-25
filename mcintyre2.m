@@ -1,4 +1,4 @@
-function [ t,Y ] = mcintyre(dur, IC)
+function [ t,Y ] = mcintyre2(dur, IC,file)
 
     vrest = -80;        %mV
     fiberD=16.0;        %um
@@ -21,9 +21,9 @@ function [ t,Y ] = mcintyre(dur, IC)
     e_k = -90.0;        %mV
     e_l	= -90.0;        %mV
     
-    g_p1 = 0.001;       %um
-    g_p2 = 0.0001;      %um
-    g_i = g_p2;         %um
+    g_p1 = 0.001;       %S/cm^2
+    g_p2 = 0.0001;      %S/cm^2 
+    g_i = g_p2;         %S/cm^2
 
     axonD=12.7;          %um 
     nodeD=5.5;          %um
@@ -52,11 +52,12 @@ function [ t,Y ] = mcintyre(dur, IC)
     c_node = calcCapacity(nodeD,nodelength,c);
     r_pn0 = calcResPeriax(nodeD,nodelength,space_p1,r);
     
-    
-    %how many nodes to simulate
-    N_nodes = 65;
+    if(exist('file','var') ==1)
+        [V_stim,N_nodes] = interpolate(file);
+    else
+        N_nodes = 105;
+    end
     N_inter = N_nodes-1;
-    
     % index values of the dV Vektor
     i_node = [1,N_nodes];
     i_para_m = [i_node(2)+1,i_node(2)+N_nodes];
@@ -87,22 +88,23 @@ function [ t,Y ] = mcintyre(dur, IC)
         i_flut_b(4)+(5*N_inter)+1,i_flut_b(4)+(6*N_inter)];
     %Dummy Stimulusvoltage
     V_e = zeros(i_inter(6,2),1);
-    V_stim = zeros(i_inter(6,2),1);
-    q = 150000;
-    xe = 14000;
-    ye = 5000;
-    V_stim(1:N_nodes) = electrode(q,xe,ye,((1:N_nodes)-1)*deltax,zeros(1,N_nodes));
-    V_stim(i_mysa(1):i_mysa(2)) = electrode(q,xe,ye,((1:N_inter)-1)*deltax+mysalength/2,zeros(1,N_inter));
-    V_stim(i_mysa(3):i_mysa(4)) = electrode(q,xe,ye,((1:N_inter))*deltax-mysalength/2,zeros(1,N_inter));
-    V_stim(i_flut(1):i_flut(2)) = electrode(q,xe,ye,((1:N_inter)-1)*deltax+mysalength+flutlength/2,zeros(1,N_inter));
-    V_stim(i_flut(3):i_flut(4)) = electrode(q,xe,ye,((1:N_inter))*deltax-mysalength-flutlength/2,zeros(1,N_inter));
-    V_stim(i_inter(1,1):i_inter(1,2)) = electrode(q,xe,ye,((1:N_inter)-1)*deltax+mysalength+flutlength+interlength/2,zeros(1,N_inter));
-    V_stim(i_inter(2,1):i_inter(2,2)) = electrode(q,xe,ye,((1:N_inter)-1)*deltax+mysalength+flutlength+3*interlength/2,zeros(1,N_inter));
-    V_stim(i_inter(3,1):i_inter(3,2)) = electrode(q,xe,ye,((1:N_inter)-1)*deltax+mysalength+flutlength+5*interlength/2,zeros(1,N_inter));
-    V_stim(i_inter(4,1):i_inter(4,2)) = electrode(q,xe,ye,((1:N_inter)-1)*deltax+mysalength+flutlength+7*interlength/2,zeros(1,N_inter));
-    V_stim(i_inter(5,1):i_inter(5,2)) = electrode(q,xe,ye,((1:N_inter)-1)*deltax+mysalength+flutlength+9*interlength/2,zeros(1,N_inter));
-    V_stim(i_inter(6,1):i_inter(6,2)) = electrode(q,xe,ye,((1:N_inter)-1)*deltax+mysalength+flutlength+11*interlength/2,zeros(1,N_inter));
-    
+    if(exist('file','var') ==0)
+        V_stim = zeros(i_inter(6,2),1);
+        q = 150000;
+        xe = 1000;
+        ye = 5000;
+        V_stim(1:N_nodes) = electrode(q,xe,ye,((1:N_nodes)-1)*deltax,zeros(1,N_nodes));
+        V_stim(i_mysa(1):i_mysa(2)) = electrode(q,xe,ye,((1:N_inter)-1)*deltax+mysalength/2,zeros(1,N_inter));
+        V_stim(i_mysa(3):i_mysa(4)) = electrode(q,xe,ye,((1:N_inter))*deltax-mysalength/2,zeros(1,N_inter));
+        V_stim(i_flut(1):i_flut(2)) = electrode(q,xe,ye,((1:N_inter)-1)*deltax+mysalength+flutlength/2,zeros(1,N_inter));
+        V_stim(i_flut(3):i_flut(4)) = electrode(q,xe,ye,((1:N_inter))*deltax-mysalength-flutlength/2,zeros(1,N_inter));
+        V_stim(i_inter(1,1):i_inter(1,2)) = electrode(q,xe,ye,((1:N_inter)-1)*deltax+mysalength+flutlength+interlength/2,zeros(1,N_inter));
+        V_stim(i_inter(2,1):i_inter(2,2)) = electrode(q,xe,ye,((1:N_inter)-1)*deltax+mysalength+flutlength+3*interlength/2,zeros(1,N_inter));
+        V_stim(i_inter(3,1):i_inter(3,2)) = electrode(q,xe,ye,((1:N_inter)-1)*deltax+mysalength+flutlength+5*interlength/2,zeros(1,N_inter));
+        V_stim(i_inter(4,1):i_inter(4,2)) = electrode(q,xe,ye,((1:N_inter)-1)*deltax+mysalength+flutlength+7*interlength/2,zeros(1,N_inter));
+        V_stim(i_inter(5,1):i_inter(5,2)) = electrode(q,xe,ye,((1:N_inter)-1)*deltax+mysalength+flutlength+9*interlength/2,zeros(1,N_inter));
+        V_stim(i_inter(6,1):i_inter(6,2)) = electrode(q,xe,ye,((1:N_inter)-1)*deltax+mysalength+flutlength+11*interlength/2,zeros(1,N_inter));
+    end
 
     figure(2);
     plot(1:N_nodes,V_stim(1:N_nodes));
@@ -135,17 +137,17 @@ function [ t,Y ] = mcintyre(dur, IC)
     end
     plot(t,V);
     figure(3);
-    plot(t,Y(:,1),t,Y(:,65));
+    plot(t,Y(:,1),t,Y(:,101));
     
     
     function dY = odeMcIntyr(t,Y)
         if exist('stim','var') ==0
             if mod(t,100) < 1
                 %
-                %V_e = V_stim;
+                V_e = V_stim;
                 %Y(11) = Y(11) -30;
                 %V_e(11) = -10;
-                Istim(1) = 0.05;
+                %Istim(1) = 0.05;
             else
                 V_e = zeros(i_inter(6,2),1);
                 Istim(1) = 0;
@@ -199,12 +201,12 @@ function [ t,Y ] = mcintyre(dur, IC)
             V_e(i_mysa(1):i_mysa(2)),V_e(i_mysa(3):i_mysa(4)));
         
         [dmysa_l,dmysa_l_b] = mysaEq(mysa_l,mysa_lv,node(1:N_nodes-1),...
-            flut_lv,mysa_l_b,V_e(1:N_nodes-1),flut_l_b, ...
+            flut_lv,mysa_l_b,zeros(N_inter,1),flut_l_b, ...
             V_e(i_mysa(1):i_mysa(2)),V_e(1:N_nodes-1),...
             V_e(i_flut(1):i_flut(2)));
         
         [dmysa_r,dmysa_r_b] = mysaEq(mysa_r,mysa_rv,node(2:N_nodes),...
-            flut_rv,mysa_r_b,V_e(2:N_nodes),flut_r_b,...
+            flut_rv,mysa_r_b,zeros(N_inter,1),flut_r_b,...
             V_e(i_mysa(3):i_mysa(4)),V_e(2:N_nodes),...
             V_e(i_flut(3):i_flut(4)));
         
@@ -306,7 +308,7 @@ function [ t,Y ] = mcintyre(dur, IC)
     function [dV, dVp] = compartment(V, Vp, Vext, Iaxonal, Iperiaxonal, ...
                                      Iext, epas, cmem, cmy, gmem, gmy)
         IPas = gmem.*(V - epas);
-        Imyelin = gmy.*(Vp - Vext);
+        Imyelin = gmy.*(Vp);
         ICmem = -IPas -Iaxonal-Iext;
         ICmyelin = IPas - Imyelin -Iperiaxonal;
         
@@ -427,6 +429,55 @@ function [ t,Y ] = mcintyre(dur, IC)
         g = gi*diameter*length*pi;
     end
 
+    function [Ve,N] = interpolate(file)
+        data = importdata(file);
+        Ve_pulse = 1000*data(:,4);
+        x = 100*data(:,1);
+        y = 100*data(:,2);
+        z = 100*data(:,3);
+        s(1) = 0;
+        for i=1:length(x)-1
+            s(i+1) = s(i) + sqrt((x(i+1)-x(i))^2 + (y(i+1)-y(i))^2 + (z(i+1)-z(i))^2);
+        end
+        n = floor(s(length(x)-1)/(deltax*1e-4));
+        N = n+1;
+        x_n(1) = 0;
+        x_m(1,1) = mysalength/2*1e-4;
+        x_m(1,2) = deltax*1e-4 -mysalength/2*1e-4;
+        x_f(1,1) = x_m(1,1) + flutlength/2*1e-4 + mysalength/2*1e-4;
+        x_f(1,2) = x_m(1,2) - flutlength*1e-4 - mysalength/2*1e-4;
+        x_i = zeros(N-1,6);
+        x_i(1,1) = x_f(1,1) + flutlength/2*1e-4 +interlength/2*1e-4;
+        for j = 2:6
+            x_i(1,j) = x_i(1,1) + (j-1)*interlength*1e-4;
+        end
+        for i=2:N
+            x_n(i) = x_n(i-1) + deltax*1e-4;
+        end
+        
+        for i=2:N-1
+            x_m(i,1) = x_m(i-1,1) + deltax*1e-4;
+            x_m(i,2) = x_m(i-1,2) + deltax*1e-4;
+            x_f(i,1) = x_f(i-1,1) + deltax*1e-4;
+            x_f(i,2) = x_f(i-1,2) + deltax*1e-4;
+            for j = 1:6
+                x_i(i,j) = x_i(i-1,j) + deltax*1e-4;
+            end 
+        end
+        
+        Ve_n = interp1(s,Ve_pulse,x_n','linear','extrap');
+        Ve_m = [interp1(s,Ve_pulse,x_m(:,1),'linear','extrap'); ...
+                interp1(s,Ve_pulse,x_m(:,2),'linear','extrap')];
+        Ve_f = [interp1(s,Ve_pulse,x_f(:,1),'linear','extrap'); ...
+                interp1(s,Ve_pulse,x_f(:,2),'linear','extrap')];
+        Ve_i = [interp1(s,Ve_pulse,x_i(:,1),'linear','extrap'); ...
+                interp1(s,Ve_pulse,x_i(:,2),'linear','extrap'); ...
+                interp1(s,Ve_pulse,x_i(:,3),'linear','extrap'); ...
+                interp1(s,Ve_pulse,x_i(:,4),'linear','extrap'); ...
+                interp1(s,Ve_pulse,x_i(:,5),'linear','extrap'); ...
+                interp1(s,Ve_pulse,x_i(:,6),'linear','extrap')];
+        Ve = [Ve_n;zeros(N*4,1);Ve_m;Ve_f;zeros((N-1)*2,1);Ve_i];
+    end
 
 end
 
