@@ -1,4 +1,4 @@
-function [ t,Y ] = mcintyre2(dur, IC,file)
+function [ t,Y ] = mcintyre2(dur, IC,file,V_applied)
 
     vrest = -80;        %mV
     fiberD=16.0;        %um
@@ -32,6 +32,7 @@ function [ t,Y ] = mcintyre2(dur, IC,file)
     deltax=1500;        %um
     flutlength=60;      %um
     nl=150;             %dimensionless
+    V_fe = 50;          %V
     interlength=(deltax-nodelength-(2*mysalength)-(2*flutlength))/6;
 
     
@@ -54,8 +55,9 @@ function [ t,Y ] = mcintyre2(dur, IC,file)
     
     if(exist('file','var') ==1)
         [V_stim,N_nodes] = interpolate(file);
+        V_stim = V_stim*V_applied/V_fe;
     else
-        N_nodes = 105;
+        N_nodes = 20;
     end
     N_inter = N_nodes-1;
     % index values of the dV Vektor
@@ -90,7 +92,7 @@ function [ t,Y ] = mcintyre2(dur, IC,file)
     V_e = zeros(i_inter(6,2),1);
     if(exist('file','var') ==0)
         V_stim = zeros(i_inter(6,2),1);
-        q = 150000;
+        q = 1500000;
         xe = 1000;
         ye = 5000;
         V_stim(1:N_nodes) = electrode(q,xe,ye,((1:N_nodes)-1)*deltax,zeros(1,N_nodes));
@@ -122,6 +124,8 @@ function [ t,Y ] = mcintyre2(dur, IC,file)
     
     Istim = zeros(N_nodes,1);
     dt = 0;
+    
+    V_ex_prev =  zeros(i_inter(6,2),1);
     [t,Y] = ode15s(@odeMcIntyr, [0,dur], IC);
 
     figure(1);
@@ -137,17 +141,17 @@ function [ t,Y ] = mcintyre2(dur, IC,file)
     end
     plot(t,V);
     figure(3);
-    plot(t,Y(:,1),t,Y(:,101));
+    plot(t,Y(:,1),t,Y(:,1));
     
     
     function dY = odeMcIntyr(t,Y)
         if exist('stim','var') ==0
             if mod(t,100) < 1
                 %
-                V_e = V_stim;
+                %V_e = V_stim;
                 %Y(11) = Y(11) -30;
                 %V_e(11) = -10;
-                %Istim(1) = 0.05;
+                Istim(1) = 0.15;
             else
                 V_e = zeros(i_inter(6,2),1);
                 Istim(1) = 0;
@@ -160,6 +164,7 @@ function [ t,Y ] = mcintyre2(dur, IC,file)
         inter = zeros(N_inter,6);
         inter_b = zeros(N_inter,6);
         
+        %V^i
         node = Y(i_node(1):i_node(2));
         para_m = Y(i_para_m(1):i_para_m(2));
         para_h = Y(i_para_h(1):i_para_h(2));
@@ -178,7 +183,7 @@ function [ t,Y ] = mcintyre2(dur, IC,file)
         inter(:,5) = Y(i_inter(5,1):i_inter(5,2));
         inter(:,6) = Y(i_inter(6,1):i_inter(6,2));
        
-
+        %V^p
         mysa_l_b = Y(i_mysa_b(1):i_mysa_b(2));
         mysa_r_b = Y(i_mysa_b(3):i_mysa_b(4));
         flut_l_b = Y(i_flut_b(1):i_flut_b(2));
@@ -190,50 +195,69 @@ function [ t,Y ] = mcintyre2(dur, IC,file)
         inter_b(:,5) = Y(i_inter_b(5,1):i_inter_b(5,2));
         inter_b(:,6) = Y(i_inter_b(6,1):i_inter_b(6,2)); 
         
-        mysa_lv = mysa_l + mysa_l_b;
-        mysa_rv = mysa_r + mysa_r_b;
-        flut_lv = flut_l + flut_l_b;
-        flut_rv = flut_r + flut_r_b;
-        interv = inter+inter_b;
+        %E^p 
+        mysa_l_b_e = mysa_l_b + V_ex_prev(i_mysa(1):i_mysa(2));
+        mysa_r_b_e = mysa_r_b + V_ex_prev(i_mysa(3):i_mysa(4));
+        flut_l_b_e = flut_l_b + V_ex_prev(i_flut(1):i_flut(2));
+        flut_r_b_e = flut_r_b + V_ex_prev(i_flut(3):i_flut(4));
+        inter_b_e = zeros(N_inter,6);
+        for k = 1:6
+           inter_b_e(:,k) = inter_b(:,k) + V_ex_prev(i_inter(k,1):i_inter(k,2)); 
+        end
+        
+        %E^i
+        node_e = node + V_ex_prev(i_node(1):i_node(2));
+        mysa_l_e = mysa_l + mysa_l_b_e;
+        mysa_r_e = mysa_r + mysa_r_b_e;
+        flut_l_e = flut_l + flut_l_b_e;
+        flut_r_e = flut_r + flut_r_b_e;
+        inter_e = inter + inter_b_e;
+        
+        %V^p (newly calculated due to possible changes of V_e)
+        mysa_l_b = mysa_l_b_e - V_e(i_mysa(1):i_mysa(2));
+        mysa_r_b = mysa_r_b_e - V_e(i_mysa(3):i_mysa(4));
+        flut_l_b = flut_l_b_e - V_e(i_flut(1):i_flut(2));
+        flut_r_b = flut_r_b_e - V_e(i_flut(3):i_flut(4));
+        inter_b(:,1) = inter_b_e(:,1) - V_e(i_inter(1,1):i_inter(1,2));
+        inter_b(:,2) = inter_b_e(:,2) - V_e(i_inter(2,1):i_inter(2,2));
+        inter_b(:,3) = inter_b_e(:,3) - V_e(i_inter(3,1):i_inter(3,2));
+        inter_b(:,4) = inter_b_e(:,4) - V_e(i_inter(4,1):i_inter(4,2));
+        inter_b(:,5) = inter_b_e(:,5) - V_e(i_inter(5,1):i_inter(5,2));
+        inter_b(:,6) = inter_b_e(:,6) - V_e(i_inter(6,1):i_inter(6,2));
+        
+        %setting V_ex_prev so E^(p,i) can be calculated correctly in next
+        %           iteration V_e actually is E^e
+        V_ex_prev = V_e;
+        
+        
+        
         
         [dnode,dpara_m,dpara_h,dpara_p,dpara_s] = nodeEq(node,para_m, ...
-            para_h,para_p,para_s,mysa_lv,mysa_rv,V_e(1:N_nodes), ...
-            V_e(i_mysa(1):i_mysa(2)),V_e(i_mysa(3):i_mysa(4)));
+            para_h,para_p,para_s,node_e,mysa_l_e,mysa_r_e);
         
-        [dmysa_l,dmysa_l_b] = mysaEq(mysa_l,mysa_lv,node(1:N_nodes-1),...
-            flut_lv,mysa_l_b,zeros(N_inter,1),flut_l_b, ...
-            V_e(i_mysa(1):i_mysa(2)),V_e(1:N_nodes-1),...
-            V_e(i_flut(1):i_flut(2)));
+        [dmysa_l,dmysa_l_b] = mysaEq(mysa_l,mysa_l_b,...
+            mysa_l_e, node_e(1:N_inter), flut_l_e, ...
+            mysa_l_b_e, V_e(1:N_inter), flut_l_b_e);
         
-        [dmysa_r,dmysa_r_b] = mysaEq(mysa_r,mysa_rv,node(2:N_nodes),...
-            flut_rv,mysa_r_b,zeros(N_inter,1),flut_r_b,...
-            V_e(i_mysa(3):i_mysa(4)),V_e(2:N_nodes),...
-            V_e(i_flut(3):i_flut(4)));
+        [dmysa_r,dmysa_r_b] = mysaEq(mysa_r,mysa_r_b, ... 
+            mysa_r_e, node_e(2:N_nodes), flut_r_e,...
+            mysa_r_b_e, V_e(2:N_nodes), flut_r_b_e);
         
-        [dflut_l,dflut_l_b] = flutEq(flut_l,flut_lv,mysa_lv,interv(:,1),...
-            flut_l_b,mysa_l_b,inter_b(:,1),...
-            V_e(i_flut(1):i_flut(2)),V_e(i_mysa(1):i_mysa(2)),...
-            V_e(i_inter(1,1):i_inter(1,2)));
+        [dflut_l,dflut_l_b] = flutEq(flut_l,flut_l_b,...
+            flut_l_e, mysa_l_e ,inter_e(:,1),...
+            flut_l_b_e,mysa_l_b_e,inter_b_e(:,1));
         
-        [dflut_r,dflut_r_b] = flutEq(flut_r,flut_rv,mysa_rv,interv(:,6),...
-            flut_r_b,mysa_r_b,inter_b(:,6),...
-            V_e(i_flut(3):i_flut(4)),V_e(i_mysa(3):i_mysa(4)),...
-            V_e(i_inter(6,1):i_inter(6,2)));
+        [dflut_r,dflut_r_b] = flutEq(flut_r,flut_r_b,...
+            flut_r_e, mysa_r_e, inter_e(:,6),...
+            flut_r_b_e, mysa_r_b_e, inter_b_e(:,6));
         
         dpara_n_l = zeros(N_inter,1);
         dpara_n_r = zeros(N_inter,1);
+      
         
-        
-        interVe = [V_e(i_inter(1,1):i_inter(1,2)),...
-            V_e(i_inter(2,1):i_inter(2,2)),...
-            V_e(i_inter(3,1):i_inter(3,2)),...
-            V_e(i_inter(4,1):i_inter(4,2)),...
-            V_e(i_inter(5,1):i_inter(5,2)),...
-            V_e(i_inter(6,1):i_inter(6,2))];
-        
-        [dinter,dinter_b] = interEq(inter,interv,flut_lv,flut_rv, ...
-            inter_b, flut_l_b, flut_r_b, interVe, ...
-            V_e(i_flut(1):i_flut(2)), V_e(i_flut(3):i_flut(4)));
+        [dinter,dinter_b] = interEq(inter,inter_b,...
+            inter_e, flut_l_e, flut_r_e, ...
+            inter_b_e, flut_l_b_e, flut_r_b_e);
         
         
         
@@ -248,75 +272,69 @@ function [ t,Y ] = mcintyre2(dur, IC,file)
     end
 
     function [dV,dm,dh,dp,ds] = nodeEq(V,m,h,p,s,...
-            VmMl,VmMr,Vex,VexMl,VexMr)
+            Ei, EiMl,EiMr)
         [I,dm,dh,dp,ds] = axnode(V,m,h,p,s);
-        Iax = axialI(V,[V(1);VmMl],[VmMr;V(N_nodes)],r_node,r_mysa,r_mysa);
-        Iex = axialI(Vex,[Vex(1);VexMl],[VexMr;Vex(N_nodes)],...
-            r_node,r_mysa,r_mysa);
-        dV = (-I-Iax-Iex+Istim)./c_node;
+        Iax = axialI(Ei,[Ei(1);EiMl],[EiMr;Ei(N_nodes)],r_node,r_mysa,r_mysa);
+        %Iex = axialI(Vex,[Vex(1);VexMl],[VexMr;Vex(N_nodes)],...
+        %    r_node,r_mysa,r_mysa);
+        dV = (-I-Iax+Istim)./c_node;
         
     end
 
-    function [dV,dVp] = interEq(V, Vm, VmFl, VmFr, Vp, VpFl, VpFr, ...
-                                            Vex, VexFl, VexFr)
+    function [dV,dVp] = interEq(V, Vp, Ei, EiFl, EiFr, Ep, EpFl, EpFr)
         dV = zeros(N_inter,6);
         dVp = zeros(N_inter,6);
         
-        Iax1 = axialI(Vm(:,1),VmFl,Vm(:,2),r_inter,r_flut,r_inter);
-        Ipx1 = axialI(Vp(:,1),VpFl,Vp(:,2),r_px,r_pn2,r_px);
-        Iex1 = axialI(Vex(:,1),VexFl,Vex(:,2),r_inter,r_flut,r_inter);
-        [dV(:,1), dVp(:,1)] = compartment(V(:,1),Vp(:,1),Vex(:,1),Iax1,Ipx1,...
-            Iex1, vrest, c_inter, c_inter_m, g_inter, g_inter_m);
+        Iax1 = axialI(Ei(:,1),EiFl,Ei(:,2),r_inter,r_flut,r_inter);
+        Ipx1 = axialI(Ep(:,1),EpFl,Ep(:,2),r_px,r_pn2,r_px);
+        %Iex1 = axialI(Vex(:,1),VexFl,Vex(:,2),r_inter,r_flut,r_inter);
+        [dV(:,1), dVp(:,1)] = compartment(V(:,1),Vp(:,1),Iax1,Ipx1,...
+             vrest, c_inter, c_inter_m, g_inter, g_inter_m);
         
-        Iax6 = axialI(Vm(:,6),VmFr,Vm(:,5),r_inter,r_flut,r_inter);
-        Ipx6 = axialI(Vp(:,6),VpFr,Vp(:,5),r_px,r_pn2,r_px);
-        Iex6 = axialI(Vex(:,6),VexFr,Vex(:,5),r_inter,r_flut,r_inter);
-        [dV(:,6), dVp(:,6)] = compartment(V(:,6),Vp(:,6),Vex(:,6),Iax6,Ipx6,...
-            Iex6, vrest, c_inter, c_inter_m, g_inter, g_inter_m);
+        Iax6 = axialI(Ei(:,6),EiFr,Ei(:,5),r_inter,r_flut,r_inter);
+        Ipx6 = axialI(Ep(:,6),EpFr,Ep(:,5),r_px,r_pn2,r_px);
+        %Iex6 = axialI(Vex(:,6),VexFr,Vex(:,5),r_inter,r_flut,r_inter);
+        [dV(:,6), dVp(:,6)] = compartment(V(:,6),Vp(:,6),Iax6,Ipx6,...
+             vrest, c_inter, c_inter_m, g_inter, g_inter_m);
         
         for j = 2:5
-            Iax = axialI(Vm(:,j),Vm(:,j-1),Vm(:,j+1),...
+            Iax = axialI(Ei(:,j),Ei(:,j-1),Ei(:,j+1),...
                 r_inter,r_inter,r_inter);
-            Ipx = axialI(Vp(:,j),Vp(:,j-1),Vp(:,j+1),r_px,r_px,r_px);
-            Iex = axialI(Vex(:,j),Vex(:,j-1),Vex(:,j+1),...
-                r_inter,r_inter,r_inter);
-            [dV(:,j), dVp(:,j)] = compartment(V(:,j),Vp(:,j),Vex(:,j),...
-                Iax,Ipx,Iex,vrest,c_inter,c_inter_m,g_inter,g_inter_m);
+            Ipx = axialI(Ep(:,j),Ep(:,j-1),Ep(:,j+1),r_px,r_px,r_px);
+            %Iex = axialI(Vex(:,j),Vex(:,j-1),Vex(:,j+1),...
+            %    r_inter,r_inter,r_inter);
+            [dV(:,j), dVp(:,j)] = compartment(V(:,j),Vp(:,j), ...
+                Iax,Ipx,vrest,c_inter,c_inter_m,g_inter,g_inter_m);
         end
         
     end
 
-    function [dV,dVp] = flutEq(V, Vm, VmM, VmI, Vp, VpM, VpI, Vex, VexM,...
-                                                                      VexI)
-       Iax = axialI(Vm,VmM,VmI,r_flut,r_mysa,r_inter);
-       Ipx = axialI(Vp,VpM,VpI,r_pn2,r_pn1,r_px);
-       Iex = axialI(Vex,VexM,VexI,r_flut,r_mysa,r_inter);
-       [dV, dVp] = compartment(V,Vp, Vex, Iax, Ipx, Iex, vrest, c_flut, ...
+    function [dV,dVp] = flutEq(V, Vp, Ei, EiM, EiI, Ep, EpM, EpI)
+       Iax = axialI(Ei,EiM,EiI,r_flut,r_mysa,r_inter);
+       Ipx = axialI(Ep,EpM,EpI,r_pn2,r_pn1,r_px);
+       %Iex = axialI(Vex,VexM,VexI,r_flut,r_mysa,r_inter);
+       [dV, dVp] = compartment(V,Vp, Iax, Ipx, vrest, c_flut, ...
            c_flut_m, g_flut, g_flut_m);
                                                   
     end
 
-    function [dV, dVp] = mysaEq(V, Vm, VmN, VmF, Vp, VpN, VpF, Vex, VexN,...
-                                                                      VexF)
-        Iax = axialI(Vm,VmN,VmF,r_mysa,r_node,r_flut);
-        Ipx = axialI(Vp,VpN,VpF,r_pn1,r_pn0,r_pn1);
-        Iex = axialI(Vex,VexN,VexF,r_mysa,r_node,r_flut);
-        [dV, dVp] = compartment(V,Vp,Vex, Iax, Ipx, Iex, vrest, c_mysa, ...
+    function [dV, dVp] = mysaEq(V,Vp,Ei,EiN,EiF,Ep,EpN,EpF)
+        Iax = axialI(Ei,EiN,EiF,r_mysa,r_node,r_flut);
+        Ipx = axialI(Ep,EpN,EpF,r_pn1,r_pn0,r_pn1);
+        %Iex = axialI(Vex,VexN,VexF,r_mysa,r_node,r_flut);
+        [dV, dVp] = compartment(V,Vp, Iax, Ipx, vrest, c_mysa, ...
            c_mysa_m, g_mysa, g_mysa_m);
     end
 
-    function [dV, dVp] = compartment(V, Vp, Vext, Iaxonal, Iperiaxonal, ...
-                                     Iext, epas, cmem, cmy, gmem, gmy)
+    function [dV, dVp] = compartment(V, Vp, Iaxonal, Iperiaxonal, ...
+                                     epas, cmem, cmy, gmem, gmy)
         IPas = gmem.*(V - epas);
         Imyelin = gmy.*(Vp);
-        ICmem = -IPas -Iaxonal-Iext;
-        ICmyelin = IPas - Imyelin -Iperiaxonal;
+        ICmem = -IPas -Iaxonal;
+        ICmyelin = - Imyelin -Iperiaxonal -Iaxonal;
         
         dV = (1./cmem).*(ICmem);
-        %dVp = (1./cmy).*(ICmyelin);
-        dVp = (1./cmy).*(-Imyelin)+(1./(cmy+cmem)).*(-Iperiaxonal) + ...
-            (1./cmem).*(IPas);
-                                
+        dVp= (1./cmy).*(ICmyelin);
     end
 
     function I = axialI(V,V1,V2,r,r1,r2)
@@ -325,7 +343,7 @@ function [ t,Y ] = mcintyre2(dur, IC,file)
 
     % axnode: calculation of the currents of the axon
     function [I,dm,dh,dp,ds] = axnode(V,m,h,p,s)
-        
+
         m_alpha = (6.57 .* (V+20.4))./(1-exp(-(V+20.4)./10.3));
         m_beta = (0.304 .* (-(V+25.7)))./(1-exp((V+25.7)./9.16));
         h_alpha = (0.34 .* (-(V+114)))./(1-exp((V+114)./11));
@@ -336,6 +354,35 @@ function [ t,Y ] = mcintyre2(dur, IC,file)
 
         s_alpha = 0.3./(1+exp((V+53)./-5));
         s_beta = 0.03./(1+exp((V+90)./-1));
+
+        %first derivatives of m, h, p, s
+        dm = dpdt(m_alpha,m_beta,m);
+        dh = dpdt(h_alpha,h_beta,h);
+        dp = dpdt(p_alpha,p_beta,p);
+        ds = dpdt(s_alpha,s_beta,s);
+
+        I_Naf = g_naf.*m.^3.*h.*(V-e_na);       %Fast Sodium current
+        I_Nap = g_nap.*p.^3.*(V-e_na);          %Persistent Sodium current
+        I_Ks = g_k.*s.*(V-e_k);                 %Slow Potassium current
+        I_Lk = g_l*(V-e_l);                     %Leakage current
+        I = I_Naf + I_Nap + I_Ks + I_Lk;        %Sum of all nodal currents
+    end
+
+    function [I,dm,dh,dp,ds] = axnode2(V,m,h,p,s,celsius)
+        
+        q10_1 = 2.2^((celsius-20/10));
+        q10_2 = 2.9^((celsius-20)/10);
+        q10_3 = 3.0^((celsius-36)/10);
+        m_alpha = (1.86 .* (V+21.4))./(1-exp(-(V+21.4)./10.3)) * q10_1;
+        m_beta = (0.086 .* (-(V+25.7)))./(1-exp((V+25.7)./9.16)) * q10_1;
+        h_alpha = (0.062 .* (-(V+114)))./(1-exp((V+114)./11)) * q10_2;
+        h_beta = 2.3./(1+exp(-(V+31.8)./13.4)) * q10_2;
+
+        p_alpha = (0.01 .* (V+27))./(1-exp(-(V+27)./10.2)) * q10_1;
+        p_beta = (0.00025 .* (-(V+34)))./(1-exp((V+34)./10)) * q10_1;
+
+        s_alpha = 0.3./(1+exp((V-27)./-5))*q10_3;
+        s_beta = 0.03./(1+exp((V+10)./-1))*q10_3;
 
         %first derivatives of m, h, p, s
         dm = dpdt(m_alpha,m_beta,m);
@@ -429,7 +476,7 @@ function [ t,Y ] = mcintyre2(dur, IC,file)
         g = gi*diameter*length*pi;
     end
 
-    function [Ve,N] = interpolate(file)
+    function [Ve,N,x_af,af] = interpolate(file)
         data = importdata(file);
         Ve_pulse = 1000*data(:,4);
         x = 100*data(:,1);
@@ -477,6 +524,13 @@ function [ t,Y ] = mcintyre2(dur, IC,file)
                 interp1(s,Ve_pulse,x_i(:,5),'linear','extrap'); ...
                 interp1(s,Ve_pulse,x_i(:,6),'linear','extrap')];
         Ve = [Ve_n;zeros(N*4,1);Ve_m;Ve_f;zeros((N-1)*2,1);Ve_i];
+        x_af = [];
+        af = [];
+        for i = 1:n
+            
+            
+        end
+        
     end
 
 end
