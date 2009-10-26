@@ -1,7 +1,7 @@
 function [ t,Y ] = mcintyre2(dur, IC,file,V_applied)
 
     vrest = -80;        %mV
-    fiberD=16.0;        %um
+    fiberD=10.0;        %um
     mysalength=3;       %um  
     nodelength=1.0;     %um
     space_p1=0.002;     %um
@@ -25,13 +25,13 @@ function [ t,Y ] = mcintyre2(dur, IC,file,V_applied)
     g_p2 = 0.0001;      %S/cm^2 
     g_i = g_p2;         %S/cm^2
 
-    axonD=12.7;          %um 
-    nodeD=5.5;          %um
-    mysaD=5.5;         %um
-    flutD=12.7;         %um
-    deltax=1500;        %um
-    flutlength=60;      %um
-    nl=150;             %dimensionless
+    axonD=6.9;          %um 
+    nodeD=3.3;          %um
+    mysaD=3.3;         %um
+    flutD=6.9;         %um
+    deltax=1250;        %um
+    flutlength=46;      %um
+    nl=120;             %dimensionless
     V_fe = 50;          %V
     interlength=(deltax-nodelength-(2*mysalength)-(2*flutlength))/6;
 
@@ -127,7 +127,7 @@ function [ t,Y ] = mcintyre2(dur, IC,file,V_applied)
     
     V_ex_prev =  zeros(i_inter(6,2),1);
     [t,Y] = ode15s(@odeMcIntyr, [0,dur], IC);
-
+    %[t,Y] = CN(@odeMcIntyr, [0,dur], IC, 1e-5);
     figure(1);
     
     for i = 1:N_nodes
@@ -529,6 +529,23 @@ function [ t,Y ] = mcintyre2(dur, IC,file,V_applied)
         for i = 1:n
             
             
+        end
+        
+    end
+    
+    %Crank Nicholson method
+    function [t,Y] = CN(fun,dur,IC,step)
+        t = dur(1):step:dur(2);
+        t = t';
+        n = length(t);
+        Y = zeros(n,length(IC));
+        Y(1,:) = IC;
+        
+        Yt = zeros(1,length(IC));
+        
+        for i=1:n-1
+            Yt = Y(i,:) + step.*fun(t(i),Y(i,:)')';
+            Y(i+1,:) = Y(i,:)+(step/2).*(fun(t(i),Y(i,:)')'+fun(t(i+1),Yt')');
         end
         
     end
