@@ -109,13 +109,13 @@ function Y=test(IC)
     if exist('IC','var') == 0
         IC = [-80,0,0,0,0];
     end
-    [t,V] = ode15s(@ode, [0,10], IC);
-    [t1,V1] = CN2(@ode, [0,10] , IC, 2*1e-3);
+    [t,V] = ode15s(@ode, [0,150], IC);
+    %[t1,V1] = CN2(@ode, [0,100] , IC, 2*1e-3);
     figure(1);
    
-    plot(t,V(:,1),t1,V1(:,1));
+    plot(t,V(:,1));
     figure(2);
-    plot(t,V(:,2:5),t1,V1(:,2:5));
+    plot(t,V(:,2:5));
     Y=V;
     
     
@@ -166,7 +166,7 @@ function Y=test(IC)
 
     function [I,dm,dh,dp,ds] = axNode(V,m,h,p,s)
         
-        m_alpha = (6.57 .* (V+20.4))./(1-exp(-(V+20.4)./10.3));
+        m_alpha = (6.57 .* (V+21.4))./(1-exp(-(V+21.4)./10.3));
         m_beta = (0.304 .* (-(V+25.7)))./(1-exp((V+25.7)./9.16));
         h_alpha = (0.34 .* (-(V+114)))./(1-exp((V+114)./11));
         h_beta = 12.6./(1+exp(-(V+31.8)./13.4));
