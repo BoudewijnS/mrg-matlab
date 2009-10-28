@@ -146,12 +146,12 @@ function [ t,Y ] = mcintyre2(dur, IC,file,V_applied)
     
     function dY = odeMcIntyr(t,Y)
         if exist('stim','var') ==0
-            if mod(t,100) < 1
+            if mod(t,1000) < 3
                 %
                 %V_e = V_stim;
                 %Y(11) = Y(11) -30;
                 %V_e(11) = -10;
-                Istim(1) = 0.15;
+                Istim(1) = 50;
             else
                 V_e = zeros(i_inter(6,2),1);
                 Istim(1) = 0;
@@ -236,12 +236,12 @@ function [ t,Y ] = mcintyre2(dur, IC,file,V_applied)
             para_h,para_p,para_s,node_e,mysa_l_e,mysa_r_e);
         
         [dmysa_l,dmysa_l_b] = mysaEq(mysa_l,mysa_l_b,...
-            mysa_l_e, node_e(1:N_inter), flut_l_e, ...
-            mysa_l_b_e, V_e(1:N_inter), flut_l_b_e);
+            mysa_l_e, node_e(2:N_nodes), flut_l_e, ...
+            mysa_l_b_e, V_e(2:N_nodes), flut_l_b_e);
         
         [dmysa_r,dmysa_r_b] = mysaEq(mysa_r,mysa_r_b, ... 
-            mysa_r_e, node_e(2:N_nodes), flut_r_e,...
-            mysa_r_b_e, V_e(2:N_nodes), flut_r_b_e);
+            mysa_r_e, node_e(1:N_inter), flut_r_e,...
+            mysa_r_b_e, V_e(1:N_inter), flut_r_b_e);
         
         [dflut_l,dflut_l_b] = flutEq(flut_l,flut_l_b,...
             flut_l_e, mysa_l_e ,inter_e(:,1),...
@@ -334,7 +334,7 @@ function [ t,Y ] = mcintyre2(dur, IC,file,V_applied)
         ICmyelin = - Imyelin -Iperiaxonal -Iaxonal;
         
         dV = (1./cmem).*(ICmem);
-        dVp= (1./cmy).*(ICmyelin);
+        dVp= (1./cmy).*(ICmyelin+ICmem);
     end
 
     function I = axialI(V,V1,V2,r,r1,r2)
@@ -368,8 +368,8 @@ function [ t,Y ] = mcintyre2(dur, IC,file,V_applied)
         I = I_Naf + I_Nap + I_Ks + I_Lk;        %Sum of all nodal currents
     end
 
-    function [I,dm,dh,dp,ds] = axnode2(V,m,h,p,s,celsius)
-        
+    function [I,dm,dh,dp,ds] = axnode2(V,m,h,p,s)
+        celsius = 37;
         q10_1 = 2.2^((celsius-20/10));
         q10_2 = 2.9^((celsius-20)/10);
         q10_3 = 3.0^((celsius-36)/10);
@@ -445,8 +445,9 @@ function [ t,Y ] = mcintyre2(dur, IC,file,V_applied)
     end
 
     function res = calcRes(area, length, r)
-        ra = r*1e4;      %Ohm*um
-        ra = ra/1e3;     %KOhm*um
+        %ra = r*1e4;      %Ohm*um
+        %ra = ra/1e3;     %KOhm*um
+        ra = r*1e-5;     %GOhm*um
         res = (4*(length)*ra)/area;
     end
 
@@ -458,8 +459,8 @@ function [ t,Y ] = mcintyre2(dur, IC,file,V_applied)
 
     function c = calcCapacity(diameter, length, cap)
        %um and uF/cm^2
-       cap = cap/1e8;   %uF/um^2
-       
+       %cap = cap/1e8;   %uF/um^2
+       cap = cap*1e-2;   %pF/um^2 
        c = cap*diameter*length*pi;
        %c is in uF
     end
@@ -471,8 +472,9 @@ function [ t,Y ] = mcintyre2(dur, IC,file,V_applied)
 
     function g = calcConductance(diameter, length, gi)
         %in S/cm^2 and um
-        gi = gi*1e6;      %mS/cm^2
-        gi = gi/1e8;      %mS/um^2
+        gi = gi*1e1; %nS/um^2
+        %gi = gi*1e6;      %mS/cm^2
+        %gi = gi/1e8;      %mS/um^2
         g = gi*diameter*length*pi;
     end
 
@@ -501,7 +503,7 @@ function [ t,Y ] = mcintyre2(dur, IC,file,V_applied)
         for i=2:N
             x_n(i) = x_n(i-1) + deltax*1e-4;
         end
-        
+        N
         for i=2:N-1
             x_m(i,1) = x_m(i-1,1) + deltax*1e-4;
             x_m(i,2) = x_m(i-1,2) + deltax*1e-4;
