@@ -92,7 +92,7 @@ function [ t,Y ] = mcintyre2(dur, IC,file,V_applied)
     V_e = zeros(i_inter(6,2),1);
     if(exist('file','var') ==0)
         V_stim = zeros(i_inter(6,2),1);
-        q = 1500000;
+        q = 400000;
         xe = 1000;
         ye = 5000;
         V_stim(1:N_nodes) = electrode(q,xe,ye,((1:N_nodes)-1)*deltax,zeros(1,N_nodes));
@@ -127,7 +127,7 @@ function [ t,Y ] = mcintyre2(dur, IC,file,V_applied)
     
     V_ex_prev =  zeros(i_inter(6,2),1);
     [t,Y] = ode15s(@odeMcIntyr, [0,dur], IC);
-    %[t,Y] = CN(@odeMcIntyr, [0,dur], IC, 1e-5);
+    %[t,Y] = CN(@odeMcIntyr, [0,dur], IC, 1e-4);
     figure(1);
     
     for i = 1:N_nodes
@@ -146,12 +146,12 @@ function [ t,Y ] = mcintyre2(dur, IC,file,V_applied)
     
     function dY = odeMcIntyr(t,Y)
         if exist('stim','var') ==0
-            if mod(t,1000) < 3
+            if mod(t,1000) < 1
                 %
-                %V_e = V_stim;
+                V_e = V_stim;
                 %Y(11) = Y(11) -30;
                 %V_e(11) = -10;
-                Istim(1) = 50;
+                %Istim(1) = 50;
             else
                 V_e = zeros(i_inter(6,2),1);
                 Istim(1) = 0;
@@ -196,17 +196,26 @@ function [ t,Y ] = mcintyre2(dur, IC,file,V_applied)
         inter_b(:,6) = Y(i_inter_b(6,1):i_inter_b(6,2)); 
         
         %E^p 
-        mysa_l_b_e = mysa_l_b + V_ex_prev(i_mysa(1):i_mysa(2));
-        mysa_r_b_e = mysa_r_b + V_ex_prev(i_mysa(3):i_mysa(4));
-        flut_l_b_e = flut_l_b + V_ex_prev(i_flut(1):i_flut(2));
-        flut_r_b_e = flut_r_b + V_ex_prev(i_flut(3):i_flut(4));
-        inter_b_e = zeros(N_inter,6);
-        for k = 1:6
-           inter_b_e(:,k) = inter_b(:,k) + V_ex_prev(i_inter(k,1):i_inter(k,2)); 
-        end
+%         mysa_l_b_e = mysa_l_b + V_ex_prev(i_mysa(1):i_mysa(2));
+%         mysa_r_b_e = mysa_r_b + V_ex_prev(i_mysa(3):i_mysa(4));
+%         flut_l_b_e = flut_l_b + V_ex_prev(i_flut(1):i_flut(2));
+%         flut_r_b_e = flut_r_b + V_ex_prev(i_flut(3):i_flut(4));
+%         inter_b_e = zeros(N_inter,6);
+%         for k = 1:6
+%            inter_b_e(:,k) = inter_b(:,k) + V_ex_prev(i_inter(k,1):i_inter(k,2)); 
+%         end
+
+
+        %if E^e is assumed to be constant d(V^p) equals d(E^p)
+        mysa_l_b_e = mysa_l_b;
+        mysa_r_b_e = mysa_r_b;
+        flut_l_b_e = flut_l_b;
+        flut_r_b_e = flut_r_b;
+        inter_b_e = inter_b;
         
+
         %E^i
-        node_e = node + V_ex_prev(i_node(1):i_node(2));
+        node_e = node;
         mysa_l_e = mysa_l + mysa_l_b_e;
         mysa_r_e = mysa_r + mysa_r_b_e;
         flut_l_e = flut_l + flut_l_b_e;
@@ -334,7 +343,7 @@ function [ t,Y ] = mcintyre2(dur, IC,file,V_applied)
         ICmyelin = - Imyelin -Iperiaxonal -Iaxonal;
         
         dV = (1./cmem).*(ICmem);
-        dVp= (1./cmy).*(ICmyelin+ICmem);
+        dVp= (1./cmy).*(ICmyelin);
     end
 
     function I = axialI(V,V1,V2,r,r1,r2)
@@ -369,8 +378,8 @@ function [ t,Y ] = mcintyre2(dur, IC,file,V_applied)
     end
 
     function [I,dm,dh,dp,ds] = axnode2(V,m,h,p,s)
-        celsius = 37;
-        q10_1 = 2.2^((celsius-20/10));
+        celsius = 36;
+        q10_1 = 2.2^((celsius-20)/10);
         q10_2 = 2.9^((celsius-20)/10);
         q10_3 = 3.0^((celsius-36)/10);
         m_alpha = (1.86 .* (V+21.4))./(1-exp(-(V+21.4)./10.3)) * q10_1;
