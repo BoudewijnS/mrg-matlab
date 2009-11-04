@@ -31,7 +31,10 @@ function Y=test(IC)
     deltax=1150; 
     paralength2=46; 
     nl=120;
-    
+    celsius = 36;
+    q10_1 = 2.2^((celsius-20)/10);
+    q10_2 = 2.9^((celsius-20)/10);
+    q10_3 = 3.0^((celsius-36)/10);
     mysalength = paralength1;
     flutlength = paralength2;
     
@@ -105,11 +108,18 @@ function Y=test(IC)
     g_naf = g_naf*sa_node*1e9;
     g_k = g_k*sa_node*1e9;
     g_l = g_l*sa_node*1e9;
-    
+    [m_alpha,m_beta] = m_ab(-80);
+        [h_alpha,h_beta] = h_ab(-80);
+        [p_alpha,p_beta] = p_ab(-80);
+        [s_alpha,s_beta] = s_ab(-80);
     if exist('IC','var') == 0
         IC = [-80,0,0,0,0];
+        IC(2) = m_alpha/(m_alpha+m_beta);
+        IC(3) = h_alpha/(h_alpha+h_beta);
+        IC(4) = p_alpha/(p_alpha+p_beta);
+        IC(5) = s_alpha/(s_alpha+s_beta);
     end
-    [t,V] = ode15s(@ode, [0,150], IC);
+    [t,V] = ode15s(@ode, [0,100], IC);
     %[t1,V1] = CN2(@ode, [0,100] , IC, 2*1e-3);
     figure(1);
    
@@ -122,9 +132,9 @@ function Y=test(IC)
     
     function dV = ode(t,V)
         if  t<1
-            V(1) = V(1) -20;
+            %V(1) = V(1) -20;
         end
-       [Iax,dpara_m,dpara_h,dpara_p,dpara_s] = axNode(V(1),V(2),...
+       [Iax,dpara_m,dpara_h,dpara_p,dpara_s] = axnode2(V(1),V(2),...
                                                 V(3),V(4),V(5));
        dv = -Iax./c_node;
        dV = [dv;dpara_m;dpara_h;dpara_p;dpara_s];
@@ -190,22 +200,13 @@ function Y=test(IC)
         I = I_Naf + I_Nap + I_Ks + I_Lk;        %Sum of all nodal currents
     end
 
-function [I,dm,dh,dp,ds] = axNode2(V,m,h,p,s,celsius)
+   function [I,dm,dh,dp,ds] = axnode2(V,m,h,p,s)
         
-        q10_1 = 2.2^((celsius-20/10));
-        q10_2 = 2.9^((celsius-20)/10);
-        q10_3 = 3.0^((celsius-36)/10);
-        m_alpha = (1.86 .* (V+21.4))./(1-exp(-(V+21.4)./10.3)) * q10_1;
-        m_beta = (0.086 .* (-(V+25.7)))./(1-exp((V+25.7)./9.16)) * q10_1;
-        h_alpha = (0.062 .* (-(V+114)))./(1-exp((V+114)./11)) * q10_2;
-        h_beta = 2.3./(1+exp(-(V+31.8)./13.4)) * q10_2;
-
-        p_alpha = (0.01 .* (V+27))./(1-exp(-(V+27)./10.2)) * q10_1;
-        p_beta = (0.00025 .* (-(V+34)))./(1-exp((V+34)./10)) * q10_1;
-
-        s_alpha = 0.3./(1+exp((V-27)./-5))*q10_3;
-        s_beta = 0.03./(1+exp((V+10)./-1))*q10_3;
-
+        [m_alpha,m_beta] = m_ab(V);
+        [h_alpha,h_beta] = h_ab(V);
+        [p_alpha,p_beta] = p_ab(V);
+        [s_alpha,s_beta] = s_ab(V);
+        
         %first derivatives of m, h, p, s
         dm = dpdt(m_alpha,m_beta,m);
         dh = dpdt(h_alpha,h_beta,h);
@@ -223,6 +224,26 @@ function [I,dm,dh,dp,ds] = axNode2(V,m,h,p,s,celsius)
   % passiveCurrent: calculation of the passive current
     function I = passiveCurrent(V,g,e)
         I = g.*(V-e);
+    end
+
+    function [m_alpha,m_beta] = m_ab(V)
+        m_alpha = (1.86 .* (V+21.4))./(1-exp(-(V+21.4)./10.3)) * q10_1;
+        m_beta = (0.086 .* (-(V+25.7)))./(1-exp((V+25.7)./9.16)) * q10_1;
+    end
+
+    function [h_alpha,h_beta] = h_ab(V)
+        h_alpha = (0.062 .* (-(V+114)))./(1-exp((V+114)./11)) * q10_2;
+        h_beta = 2.3./(1+exp(-(V+31.8)./13.4)) * q10_2;
+    end
+
+    function [p_alpha,p_beta] = p_ab(V)
+        p_alpha = (0.01 .* (V+27))./(1-exp(-(V+27)./10.2)) * q10_1;
+        p_beta = (0.00025 .* (-(V+34)))./(1-exp((V+34)./10)) * q10_1;
+    end
+
+    function [s_alpha,s_beta] = s_ab(V)
+        s_alpha = 0.3./(1+exp((V+53)./-5))*q10_3;
+        s_beta = 0.03./(1+exp((V+90)./-1))*q10_3;
     end
 
     % dpdt: calculates the derivative of the of the parameter according to
