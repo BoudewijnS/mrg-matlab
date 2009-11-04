@@ -29,11 +29,17 @@ function [ t,Y ] = mcintyre2(dur, IC,file,V_applied)
     nodeD=3.3;          %um
     mysaD=3.3;         %um
     flutD=6.9;         %um
-    deltax=1250;        %um
+    deltax=1150;        %um
     flutlength=46;      %um
     nl=120;             %dimensionless
     V_fe = 50;          %V
     interlength=(deltax-nodelength-(2*mysalength)-(2*flutlength))/6;
+    
+    
+    celsius = 36;
+    q10_1 = 2.2^((celsius-20)/10);
+    q10_2 = 2.9^((celsius-20)/10);
+    q10_3 = 3.0^((celsius-36)/10);
 
     
     [r_mysa,r_pn1,c_mysa,c_mysa_m,g_mysa,g_mysa_m] = paracomp( ...
@@ -116,7 +122,16 @@ function [ t,Y ] = mcintyre2(dur, IC,file,V_applied)
         IC(1:N_nodes) = -80;
         IC(i_mysa(1):i_flut(4)) = -80;
         IC(i_inter(1,1):i_inter(6,2)) = -80;
-        stim = 0;
+        [m_alpha,m_beta] = m_ab(-80);
+        [h_alpha,h_beta] = h_ab(-80);
+        [p_alpha,p_beta] = p_ab(-80);
+        [s_alpha,s_beta] = s_ab(-80);
+        IC(i_para_m(1):i_para_m(2)) = m_alpha/(m_alpha+m_beta);
+        IC(i_para_h(1):i_para_h(2)) = h_alpha/(h_alpha+h_beta);
+        IC(i_para_p(1):i_para_p(2)) = p_alpha/(p_alpha+p_beta);
+        IC(i_para_s(1):i_para_s(2)) = s_alpha/(s_alpha+s_beta);
+        
+        %stim = 0;
     end
     if (exist('dur','var')==0)
         dur = 10;
@@ -141,20 +156,20 @@ function [ t,Y ] = mcintyre2(dur, IC,file,V_applied)
     end
     plot(t,V);
     figure(3);
-    plot(t,Y(:,1),t,Y(:,1));
+    plot(t,Y(:,10),t,Y(:,1));
     
     
     function dY = odeMcIntyr(t,Y)
         if exist('stim','var') ==0
-            if mod(t,1000) < 1
+            if t < 2 && t >1
                 %
-                V_e = V_stim;
+                %V_e = V_stim;
                 %Y(11) = Y(11) -30;
                 %V_e(11) = -10;
-                %Istim(1) = 50;
+                Istim(10) = 302;
             else
                 V_e = zeros(i_inter(6,2),1);
-                Istim(1) = 0;
+                Istim(10) = 0;
             end
         end
         if t > dt
@@ -282,7 +297,7 @@ function [ t,Y ] = mcintyre2(dur, IC,file,V_applied)
 
     function [dV,dm,dh,dp,ds] = nodeEq(V,m,h,p,s,...
             Ei, EiMl,EiMr)
-        [I,dm,dh,dp,ds] = axnode(V,m,h,p,s);
+        [I,dm,dh,dp,ds] = axnode2(V,m,h,p,s);
         Iax = axialI(Ei,[Ei(1);EiMl],[EiMr;Ei(N_nodes)],r_node,r_mysa,r_mysa);
         %Iex = axialI(Vex,[Vex(1);VexMl],[VexMr;Vex(N_nodes)],...
         %    r_node,r_mysa,r_mysa);
@@ -353,7 +368,7 @@ function [ t,Y ] = mcintyre2(dur, IC,file,V_applied)
     % axnode: calculation of the currents of the axon
     function [I,dm,dh,dp,ds] = axnode(V,m,h,p,s)
 
-        m_alpha = (6.57 .* (V+20.4))./(1-exp(-(V+20.4)./10.3));
+        m_alpha = (6.57 .* (V+21.4))./(1-exp(-(V+21.4)./10.3));
         m_beta = (0.304 .* (-(V+25.7)))./(1-exp((V+25.7)./9.16));
         h_alpha = (0.34 .* (-(V+114)))./(1-exp((V+114)./11));
         h_beta = 12.6./(1+exp(-(V+31.8)./13.4));
@@ -378,21 +393,12 @@ function [ t,Y ] = mcintyre2(dur, IC,file,V_applied)
     end
 
     function [I,dm,dh,dp,ds] = axnode2(V,m,h,p,s)
-        celsius = 36;
-        q10_1 = 2.2^((celsius-20)/10);
-        q10_2 = 2.9^((celsius-20)/10);
-        q10_3 = 3.0^((celsius-36)/10);
-        m_alpha = (1.86 .* (V+21.4))./(1-exp(-(V+21.4)./10.3)) * q10_1;
-        m_beta = (0.086 .* (-(V+25.7)))./(1-exp((V+25.7)./9.16)) * q10_1;
-        h_alpha = (0.062 .* (-(V+114)))./(1-exp((V+114)./11)) * q10_2;
-        h_beta = 2.3./(1+exp(-(V+31.8)./13.4)) * q10_2;
-
-        p_alpha = (0.01 .* (V+27))./(1-exp(-(V+27)./10.2)) * q10_1;
-        p_beta = (0.00025 .* (-(V+34)))./(1-exp((V+34)./10)) * q10_1;
-
-        s_alpha = 0.3./(1+exp((V-27)./-5))*q10_3;
-        s_beta = 0.03./(1+exp((V+10)./-1))*q10_3;
-
+        
+        [m_alpha,m_beta] = m_ab(V);
+        [h_alpha,h_beta] = h_ab(V);
+        [p_alpha,p_beta] = p_ab(V);
+        [s_alpha,s_beta] = s_ab(V);
+        
         %first derivatives of m, h, p, s
         dm = dpdt(m_alpha,m_beta,m);
         dh = dpdt(h_alpha,h_beta,h);
@@ -416,6 +422,26 @@ function [ t,Y ] = mcintyre2(dur, IC,file,V_applied)
         I_Kf = g_kf.*n.^4.*(V-e_k);
         
         I = I_Kf; 
+    end
+
+    function [m_alpha,m_beta] = m_ab(V)
+        m_alpha = (1.86 .* (V+21.4))./(1-exp(-(V+21.4)./10.3)) * q10_1;
+        m_beta = (0.086 .* (-(V+25.7)))./(1-exp((V+25.7)./9.16)) * q10_1;
+    end
+
+    function [h_alpha,h_beta] = h_ab(V)
+        h_alpha = (0.062 .* (-(V+114)))./(1-exp((V+114)./11)) * q10_2;
+        h_beta = 2.3./(1+exp(-(V+31.8)./13.4)) * q10_2;
+    end
+
+    function [p_alpha,p_beta] = p_ab(V)
+        p_alpha = (0.01 .* (V+27))./(1-exp(-(V+27)./10.2)) * q10_1;
+        p_beta = (0.00025 .* (-(V+34)))./(1-exp((V+34)./10)) * q10_1;
+    end
+
+    function [s_alpha,s_beta] = s_ab(V)
+        s_alpha = 0.3./(1+exp((V+53)./-5))*q10_3;
+        s_beta = 0.03./(1+exp((V+90)./-1))*q10_3;
     end
     
     % dpdt: calculates the derivative of the of the parameter according to
