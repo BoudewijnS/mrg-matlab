@@ -63,7 +63,7 @@ function [ t,Y ] = mcintyre2(dur, IC,file,V_applied)
         [V_stim,N_nodes] = interpolate(file);
         V_stim = V_stim*V_applied/V_fe;
     else
-        N_nodes = 20;
+        N_nodes = 21;
     end
     N_inter = N_nodes-1;
     % index values of the dV Vektor
@@ -156,20 +156,20 @@ function [ t,Y ] = mcintyre2(dur, IC,file,V_applied)
     end
     plot(t,V);
     figure(3);
-    plot(t,Y(:,10),t,Y(:,1));
+    plot(t,Y(:,11),t,Y(:,1));
     
     
     function dY = odeMcIntyr(t,Y)
         if exist('stim','var') ==0
-            if t < 2 && t >1
+            if t < 0.1 && t >0
                 %
                 %V_e = V_stim;
                 %Y(11) = Y(11) -30;
                 %V_e(11) = -10;
-                Istim(10) = 302;
+                Istim(11) = 900;
             else
                 V_e = zeros(i_inter(6,2),1);
-                Istim(10) = 0;
+                Istim(11) = 0;
             end
         end
         if t > dt
@@ -475,7 +475,7 @@ function [ t,Y ] = mcintyre2(dur, IC,file,V_applied)
     
     function rpx = calcResPeriax(diameter, length, space, r)
         %um and Ohm*cm
-        a = pi*((diameter+space)^2-diameter^2);
+        a = pi*((diameter+(2*space))^2-diameter^2);
         rpx = calcRes(a,length,r);
     end
 
