@@ -158,6 +158,56 @@ function [ t,Y ] = mcintyre2(dur, IC,file,V_applied)
     figure(3);
     plot(t,Y(:,11),t,Y(:,1));
     
+    figure(4)
+    subplot(4,3,1);
+    plot(t,Y(:,3));
+    subplot(4,3,2);
+    plot(t,Y(:,i_mysa(1)+3));
+    subplot(4,3,3);
+    plot(t,Y(:,i_flut(1)+3));
+    subplot(4,3,4);
+    plot(t,Y(:,i_inter(1)+3));
+    subplot(4,3,5);
+    plot(t,Y(:,i_inter(2)+3));
+    subplot(4,3,6);
+    plot(t,Y(:,i_inter(3)+3));
+    subplot(4,3,7);
+    plot(t,Y(:,i_inter(4)+3));
+    subplot(4,3,8);
+    plot(t,Y(:,i_inter(5)+3));
+    subplot(4,3,9);
+    plot(t,Y(:,i_inter(6)+3));
+    subplot(4,3,10);
+    plot(t,Y(:,i_flut(3)+3));
+    subplot(4,3,11);
+    plot(t,Y(:,i_mysa(3)+3));
+    subplot(4,3,12);
+    plot(t,Y(:,4));
+    figure(5)
+    subplot(4,3,1);
+    plot(t,Y(:,3));
+    subplot(4,3,2);
+    plot(t,Y(:,i_mysa_b(1)+3));
+    subplot(4,3,3);
+    plot(t,Y(:,i_flut_b(1)+3));
+    subplot(4,3,4);
+    plot(t,Y(:,i_inter_b(1)+3));
+    subplot(4,3,5);
+    plot(t,Y(:,i_inter_b(2)+3));
+    subplot(4,3,6);
+    plot(t,Y(:,i_inter_b(3)+3));
+    subplot(4,3,7);
+    plot(t,Y(:,i_inter_b(4)+3));
+    subplot(4,3,8);
+    plot(t,Y(:,i_inter_b(5)+3));
+    subplot(4,3,9);
+    plot(t,Y(:,i_inter_b(6)+3));
+    subplot(4,3,10);
+    plot(t,Y(:,i_flut_b(3)+3));
+    subplot(4,3,11);
+    plot(t,Y(:,i_mysa_b(3)+3));
+    subplot(4,3,12);
+    plot(t,Y(:,4));
     
     function dY = odeMcIntyr(t,Y)
         if exist('stim','var') ==0
