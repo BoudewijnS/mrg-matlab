@@ -141,6 +141,8 @@ function [ t,Y ] = mcintyre2(dur, IC,file,V_applied)
     dt = 0;
     
     V_ex_prev =  zeros(i_inter(6,2),1);
+    
+    
     [t,Y] = ode15s(@odeMcIntyr, [0,dur], IC);
     %[t,Y] = CN(@odeMcIntyr, [0,dur], IC, 1e-4);
     figure(1);
@@ -216,7 +218,7 @@ function [ t,Y ] = mcintyre2(dur, IC,file,V_applied)
                 %V_e = V_stim;
                 %Y(11) = Y(11) -30;
                 %V_e(11) = -10;
-                Istim(11) = 900;
+                Istim(11) = 1020;
             else
                 V_e = zeros(i_inter(6,2),1);
                 Istim(11) = 0;
@@ -394,7 +396,7 @@ function [ t,Y ] = mcintyre2(dur, IC,file,V_applied)
 
     function [dV, dVp] = mysaEq(V,Vp,Ei,EiN,EiF,Ep,EpN,EpF)
         Iax = axialI(Ei,EiN,EiF,r_mysa,r_node,r_flut);
-        Ipx = axialI(Ep,EpN,EpF,r_pn1,r_pn0,r_pn1);
+        Ipx = axialI(Ep,EpN,EpF,r_pn1,r_pn0,r_pn2);
         %Iex = axialI(Vex,VexN,VexF,r_mysa,r_node,r_flut);
         [dV, dVp] = compartment(V,Vp, Iax, Ipx, vrest, c_mysa, ...
            c_mysa_m, g_mysa, g_mysa_m);
