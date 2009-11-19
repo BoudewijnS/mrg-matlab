@@ -60,9 +60,11 @@ function [ t,Y ] = mcintyre2(dur,file,V_applied)
     r_pn0 = calcResPeriax(nodeD,nodelength,space_p1,r);
     
     if(exist('file','var') ==1)
-        [V_stim,N_nodes] = interpolate(file);
+        [V_stim,N_nodes,x_af,af,Xlr] = interpolate(file);
+        Xlr = -Xlr*V_applied/V_fe;
         V_stim = V_stim*V_applied/V_fe;
     else
+        Xlr=[0,0];
         N_nodes = 21;
     end
     N_inter = N_nodes-1;
@@ -98,20 +100,22 @@ function [ t,Y ] = mcintyre2(dur,file,V_applied)
     V_e = zeros(i_inter(6,2),1);
     if(exist('file','var') ==0)
         V_stim = zeros(i_inter(6,2),1);
-        q = 50*1e4*0.5;
-        xe = 11000;
-        ye = 1000;
-        V_stim(1:N_nodes) = electrode(q,xe,ye,((1:N_nodes)-1)*deltax,zeros(1,N_nodes));
-        V_stim(i_mysa(1):i_mysa(2)) = electrode(q,xe,ye,((1:N_inter)-1)*deltax+mysalength/2,zeros(1,N_inter));
-        V_stim(i_mysa(3):i_mysa(4)) = electrode(q,xe,ye,((1:N_inter))*deltax-mysalength/2,zeros(1,N_inter));
-        V_stim(i_flut(1):i_flut(2)) = electrode(q,xe,ye,((1:N_inter)-1)*deltax+mysalength+flutlength/2,zeros(1,N_inter));
-        V_stim(i_flut(3):i_flut(4)) = electrode(q,xe,ye,((1:N_inter))*deltax-mysalength-flutlength/2,zeros(1,N_inter));
-        V_stim(i_inter(1,1):i_inter(1,2)) = electrode(q,xe,ye,((1:N_inter)-1)*deltax+mysalength+flutlength+interlength/2,zeros(1,N_inter));
-        V_stim(i_inter(2,1):i_inter(2,2)) = electrode(q,xe,ye,((1:N_inter)-1)*deltax+mysalength+flutlength+3*interlength/2,zeros(1,N_inter));
-        V_stim(i_inter(3,1):i_inter(3,2)) = electrode(q,xe,ye,((1:N_inter)-1)*deltax+mysalength+flutlength+5*interlength/2,zeros(1,N_inter));
-        V_stim(i_inter(4,1):i_inter(4,2)) = electrode(q,xe,ye,((1:N_inter)-1)*deltax+mysalength+flutlength+7*interlength/2,zeros(1,N_inter));
-        V_stim(i_inter(5,1):i_inter(5,2)) = electrode(q,xe,ye,((1:N_inter)-1)*deltax+mysalength+flutlength+9*interlength/2,zeros(1,N_inter));
-        V_stim(i_inter(6,1):i_inter(6,2)) = electrode(q,xe,ye,((1:N_inter)-1)*deltax+mysalength+flutlength+11*interlength/2,zeros(1,N_inter));
+        q = 35*-0.70;
+        xe = 11510*1e-4;
+        ye = 1000*1e-4;
+        [x_n,x_m,x_f,x_i] = calcX(N_nodes);
+        V_stim(1:N_nodes) = electrode(q,xe,ye,x_n,zeros(N_nodes,1));
+        V_stim(i_mysa(1):i_mysa(2)) = electrode(q,xe,ye,x_m(:,1),zeros(N_inter,1));
+        V_stim(i_mysa(3):i_mysa(4)) = electrode(q,xe,ye,x_m(:,2),zeros(N_inter,1));
+        V_stim(i_flut(1):i_flut(2)) = electrode(q,xe,ye,x_f(:,1),zeros(N_inter,1));
+        V_stim(i_flut(3):i_flut(4)) = electrode(q,xe,ye,x_f(:,2),zeros(N_inter,1));
+        V_stim(i_inter(1,1):i_inter(1,2)) = electrode(q,xe,ye,x_i(:,1),zeros(N_inter,1));
+        V_stim(i_inter(2,1):i_inter(2,2)) = electrode(q,xe,ye,x_i(:,2),zeros(N_inter,1));
+        V_stim(i_inter(3,1):i_inter(3,2)) = electrode(q,xe,ye,x_i(:,3),zeros(N_inter,1));
+        V_stim(i_inter(4,1):i_inter(4,2)) = electrode(q,xe,ye,x_i(:,4),zeros(N_inter,1));
+        V_stim(i_inter(5,1):i_inter(5,2)) = electrode(q,xe,ye,x_i(:,5),zeros(N_inter,1));
+        V_stim(i_inter(6,1):i_inter(6,2)) = electrode(q,xe,ye,x_i(:,6),zeros(N_inter,1));
+        
     end
 
     figure(2);
@@ -141,11 +145,24 @@ function [ t,Y ] = mcintyre2(dur,file,V_applied)
     
     Istim = zeros(N_nodes,1);
     dt = 0;
+    options = CVodeSetOptions('RelTol',1.e-3,...
+                          'AbsTol',1.e-4);
+    CVodeInit(@odeCVode,'BDF','Newton',0,IC,options);
     
-    V_ex_prev =  zeros(i_inter(6,2),1);
-    
-    
-    [t,Y] = ode15s(@odeMcIntyr, [0,dur], IC);
+    dtout = 0.01;
+    tout = dtout;
+    t=[];
+    Y=[];
+    for i = 1:dur/dtout
+        
+        [status,t1,Y1] = CVode(tout,'Normal');
+        t=[t,t1];
+        Y=[Y,Y1];
+        tout=tout+dtout;
+    end
+    Y=Y';
+    CVodeFree;
+    %[t,Y] = ode15s(@odeMcIntyr, [0,dur], IC);
     %[t,Y] = CN(@odeMcIntyr, [0,dur], IC, 1e-4);
     figure(1);
     
@@ -213,11 +230,17 @@ function [ t,Y ] = mcintyre2(dur,file,V_applied)
     subplot(4,3,12);
     plot(t,Y(:,4));
     
+    function [dY,flag,new_data] = odeCVode(t,Y)
+        dY = odeMcIntyr(t,Y);
+        flag = [0];
+        new_data = [];
+    end
+    
     function dY = odeMcIntyr(t,Y)
         if exist('stim','var') ==0
             if t <= 1 && t >0
                 %
-                V_e = -V_stim;
+                V_e = V_stim;
                 %Y(11) = Y(11) -30;
                 %V_e(11) = -10;
                 %Istim(11) = 298;
@@ -368,10 +391,10 @@ function [ t,Y ] = mcintyre2(dur,file,V_applied)
             Ei, EiMl,EiMr,Vex,VexMl,VexMr)
         [I,dm,dh,dp,ds] = axnode2(V,m,h,p,s);
         Iax = axialI(Ei,[Ei(1);EiMl],[EiMr;Ei(N_nodes)],r_node,r_mysa,r_mysa);
-        Iex = axialI(Vex,[Vex(1);VexMl],[VexMr;Vex(N_nodes)],...
+        Iex = axialI(Vex,[Vex(1)*2-VexMr(1);VexMl],[VexMr;Vex(N_nodes)*2-VexMl(N_inter)],...
             r_node,r_mysa,r_mysa);
         dV = (-I-Iax+Istim-Iex)./c_node;
-        
+       
     end
 
     function [dV,dVp] = interEq(V, Vp, Ei, EiFl, EiFr, Ep, EpFl, EpFr,Vex,VexFl,VexFr)
@@ -424,7 +447,7 @@ function [ t,Y ] = mcintyre2(dur,file,V_applied)
         IPas = gmem.*(V - epas);
         Imyelin = gmy.*(Vp);
         ICmem = -IPas -Iaxonal-Iex;
-        ICmyelin = - Imyelin -Iperiaxonal -Iaxonal -Iex;
+        ICmyelin = - Imyelin -Iperiaxonal -Iaxonal-Iex;
         
         dV = (1./cmem).*(ICmem);
         dVp= (1./cmy).*(ICmyelin);
@@ -582,7 +605,7 @@ function [ t,Y ] = mcintyre2(dur,file,V_applied)
         g = gi*diameter*length*pi;
     end
 
-    function [Ve,N,x_af,af] = interpolate(file)
+    function [Ve,N,x_af,af,Vlr] = interpolate(file)
         data = importdata(file);
         % to mV
         Ve_pulse = 1e3*data(:,4);
@@ -594,33 +617,19 @@ function [ t,Y ] = mcintyre2(dur,file,V_applied)
         for i=1:length(x)-1
             s(i+1) = s(i) + sqrt((x(i+1)-x(i))^2 + (y(i+1)-y(i))^2 + (z(i+1)-z(i))^2);
         end
-        n = floor(s(length(x)-1)/(deltax*1e-4));
+        n = floor(s(length(x)-1)/(deltax*1e-4))+16;
         N = n+1;
-        x_n(1) = 0;
-        x_m(1,1) = mysalength/2*1e-4;
-        x_m(1,2) = deltax*1e-4 -mysalength/2*1e-4;
-        x_f(1,1) = x_m(1,1) + flutlength/2*1e-4 + mysalength/2*1e-4;
-        x_f(1,2) = x_m(1,2) - flutlength*1e-4 - mysalength/2*1e-4;
-        x_i = zeros(N-1,6);
-        x_i(1,1) = x_f(1,1) + flutlength/2*1e-4 +interlength/2*1e-4;
-        for j = 2:6
-            x_i(1,j) = x_i(1,1) + (j-1)*interlength*1e-4;
-        end
-        for i=2:N
-            x_n(i) = x_n(i-1) + deltax*1e-4;
-        end
-        N
-        for i=2:N-1
-            x_m(i,1) = x_m(i-1,1) + deltax*1e-4;
-            x_m(i,2) = x_m(i-1,2) + deltax*1e-4;
-            x_f(i,1) = x_f(i-1,1) + deltax*1e-4;
-            x_f(i,2) = x_f(i-1,2) + deltax*1e-4;
-            for j = 1:6
-                x_i(i,j) = x_i(i-1,j) + deltax*1e-4;
-            end 
-        end
+        [x_n,x_m,x_f,x_i] = calcX(N);
+        x_n=x_n-8*(deltax+1)*1e-4;
+        x_m=x_m-8*(deltax+1)*1e-4;
+        x_f=x_f-8*(deltax+1)*1e-4;
+        x_i=x_i-8*(deltax+1)*1e-4;
         
-        Ve_n = interp1(s,Ve_pulse,x_n','linear','extrap');
+        
+        xlr=[x_n(1)-2e-4,x_n(N)+2e-4];
+        Vlr = interp1(s,Ve_pulse,xlr,'linear','extrap');
+        
+        Ve_n = interp1(s,Ve_pulse,x_n,'linear','extrap');
         Ve_m = [interp1(s,Ve_pulse,x_m(:,1),'linear','extrap'); ...
                 interp1(s,Ve_pulse,x_m(:,2),'linear','extrap')];
         Ve_f = [interp1(s,Ve_pulse,x_f(:,1),'linear','extrap'); ...
@@ -634,16 +643,59 @@ function [ t,Y ] = mcintyre2(dur,file,V_applied)
         Ve = [Ve_n;zeros(N*4,1);Ve_m;Ve_f;zeros((N-1)*2,1);Ve_i];
         x_af = [];
         af = [];
+        expot = [];
         for i = 1:n
-            x_af = [x_af,x_n(i),x_m(i,1),x_f(i,1),x_i(i,1),x_i(i,2),x_i(i,3),x_i(i,4),x_i(i,5),x_i(i,6),x_f(i,2),x_m(i,2)];
-            af = [af,Ve_n(i),Ve_m(i),Ve_f(i),Ve_i(i),Ve_i(i+n),Ve_i(i+2*n),Ve_i(i+3*n),Ve_i(i+4*n),Ve_i(i+5*n),Ve_f(i+n),Ve_m(i+n)];
-            
+            x_af = [x_af,x_n(i),x_m(i,2),x_f(i,2),x_i(i,6),x_i(i,5),x_i(i,4),x_i(i,3),x_i(i,2),x_i(i,1),x_f(i,1),x_m(i,1)];
+            expot = [expot,Ve_n(i),Ve_m(i+n),Ve_f(i+n),Ve_i(i+5*n),Ve_i(i+4*n),Ve_i(i+3*n),Ve_i(i+2*n),Ve_i(i+n),Ve_i(i),Ve_f(i),Ve_m(i)];
         end
-        x_af = [x_af,x_n(N)];
-        af = [af,Ve_n(N)];
-        figure(10);
-        plot(x_af,af);
         
+        x_af = [x_af,x_n(N)];
+        expot = [expot,Ve_n(N)];
+        
+        figure(10);
+        plot(x_af,expot);
+        %figure(11);
+        %i=2;
+        %x_af = [x_n(i),x_m(i,2),x_f(i,2),x_i(i,6),x_i(i,5),x_i(i,4),x_i(i,3),x_i(i,2),x_i(i,1),x_f(i,1),x_m(i,1)];
+        %    af = [Ve_n(i),Ve_m(i+n),Ve_f(i+n),Ve_i(i+5*n),Ve_i(i+4*n),Ve_i(i+3*n),Ve_i(i+2*n),Ve_i(i+n),Ve_i(i),Ve_f(i),Ve_m(i)];
+        %plot(x_af,af);
+        
+    end
+
+    function [x_n,x_m1,x_f1,x_i1] = calcX(N)
+        x_n(1) = 0.5*1e-4;
+        x_m(1,1) = x_n(1) + 0.5*1e-4 + mysalength/2*1e-4;
+        x_m(1,2) = x_n(1) + (1+deltax)*1e-4 -mysalength/2*1e-4;
+        x_f(1,1) = x_m(1,1) + flutlength/2*1e-4 + mysalength/2*1e-4;
+        x_f(1,2) = x_m(1,2) - flutlength*1e-4 - mysalength/2*1e-4;
+        x_i = zeros(N-1,6);
+        x_i(1,1) = x_f(1,1) + flutlength/2*1e-4 +interlength/2*1e-4;
+        for j = 2:6
+            x_i(1,j) = x_i(1,1) + (j-1)*interlength*1e-4;
+        end
+        for i=2:N
+            x_n(i) = x_n(i-1) + deltax*1e-4+1e-4;
+        end
+        N
+        for i=2:N-1
+            x_m(i,1) = x_m(i-1,1) + (1+deltax)*1e-4;
+            x_m(i,2) = x_m(i-1,2) + (1+deltax)*1e-4;
+            x_f(i,1) = x_f(i-1,1) + (1+deltax)*1e-4;
+            x_f(i,2) = x_f(i-1,2) + (1+deltax)*1e-4;
+            for j = 1:6
+                x_i(i,j) = x_i(i-1,j) + (1+deltax)*1e-4;
+            end 
+        end
+        
+        x_m1(:,1) = x_m(:,2);
+        x_m1(:,2) = x_m(:,1);
+        x_f1(:,1) = x_f(:,2);
+        x_f1(:,2) = x_f(:,1);
+        x_i1=zeros(N-1,6);
+        for i=1:6
+            x_i1(:,i) = x_i(:,7-i);
+        end
+        x_n=x_n';
     end
     
     %Crank Nicholson method
