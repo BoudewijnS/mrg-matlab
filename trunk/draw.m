@@ -18,12 +18,12 @@ function draw( t,Y,N_nodes,range )
         Y2(j,:) = Y1(:,j) - (j-1)*5; 
     end
     Y3 = [];
-    for j = 3:N_nodes
+    for j = 5:N_nodes-4
         Y3(j,:) = Y1(:,j) - (j-1)*20; 
     end
-    figure(5);
+    %figure(5);
     %subplot(1,2,1);
-    plot(t1,Y3);
+    plot(t1,Y3,'k');
     %subplot(1,2,2);
     %plot(t1,Y3);
 end

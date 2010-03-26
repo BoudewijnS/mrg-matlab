@@ -696,7 +696,7 @@ function [ t,Y ] = mcintyre2(dur,file,V_applied)
         
         xlr=[x_n(1)-2e-4,x_n(N)+2e-4];
         
-        displacment = -1;
+        displacment = 0;
         x_n=x_n+displacment*1e-4*deltax/10;
         x_m=x_m+displacment*1e-4*deltax/10;
         x_f=x_f+displacment*1e-4*deltax/10;
