@@ -1,0 +1,573 @@
+function [ Y ] = coll( dur , file,file_coll,V_applied,V_fe,stim_dur)
+    
+
+
+    stim_dur = 1;
+    
+    celsius = 36;
+    q10_1 = 2.2^((celsius-20)/10);
+    q10_2 = 2.9^((celsius-20)/10);
+    q10_3 = 3.0^((celsius-36)/10);
+    
+    para_coll = para(5.7);
+    para_dc = para(11.5);
+    
+    [V_stim_dc,N_nodes_dc,x_af,af,Xlr_dc] = interpolate(file,para_dc,1);
+    Xlr_stim_dc = Xlr_dc*V_applied/V_fe;
+    V_stim_dc = V_stim_dc*V_applied/V_fe;
+    
+    [V_stim_coll,N_nodes_coll,x_af,af,Xlr_coll] = interpolate(file_coll,para_coll,0);
+    Xlr_stim_coll = Xlr_coll*V_applied/V_fe;
+    V_stim_coll = V_stim_coll*V_applied/V_fe;
+    
+    index_dc = index(N_nodes_dc);
+    index_coll = index(N_nodes_coll);
+    
+    IC_dc = createIC(index_dc);
+    IC_coll = createIC(index_coll);
+    
+    options = CVodeSetOptions('RelTol',1.e-3,...
+                          'AbsTol',1.e-4);
+
+    %Istim = zeros(N_nodes,1);
+    dt = 0;
+    
+    
+    CVodeInit(@moelCVode,'BDF','Newton',0,[IC_dc;IC_coll],options);
+    
+    dtout = 0.01;
+    tout = dtout;
+    t=[];
+    Y=[];
+    for i = 1:dur/dtout
+        
+        [status,t1,Y1] = CVode(tout,'Normal');
+        t=[t,t1];
+        Y=[Y,Y1];
+        tout=tout+dtout;
+    end
+    Y=Y';
+    CVodeFree;
+    
+    figure(1);
+    
+    for i = 1:index_dc.N_nodes
+        V(i,:) = Y(:,i) - 40*(i-1);
+    end
+    for i= 1:index_coll.N_nodes
+        V(i+index_dc.N_nodes,:) = Y(:,size(IC_dc,1)+i) - 50*index_dc.N_nodes - 40*(i-1);
+    end
+    plot(t,V);
+    
+    
+    
+    function [dY,flag,new_data] = moelCVode(t,Y)
+        dY = model(t,Y);
+        flag = [0];
+        new_data = [];
+    end
+    
+
+    function dY = model(t,Y)
+        
+        Istim_dc = zeros(index_dc.N_nodes,1);
+       
+        Istim_coll = zeros(index_coll.N_nodes,1);
+        
+        
+        if t <= stim_dur && t >0
+            V_e_dc = V_stim_dc;
+            Xlr_dc = Xlr_stim_dc;
+            V_e_coll = V_stim_coll;
+            Xlr_coll = Xlr_stim_coll;
+            
+            %Istim_coll(6) = 1500;
+            %V_e_dc = zeros(index_dc.i_inter(6,2),1);
+            %Xlr_dc = zeros(2,1);
+            %V_e_coll = zeros(index_coll.i_inter(6,2),1);
+            %Xlr_coll = zeros(2,1);
+        else
+            V_e_dc = zeros(index_dc.i_inter(6,2),1);
+            Xlr_dc = zeros(2,1);
+            V_e_coll = zeros(index_coll.i_inter(6,2),1);
+            Xlr_coll = zeros(2,1);
+        end
+        if t > dt
+            dt
+            dt=dt+0.1;
+        end
+        
+        Y_dc = Y(1:size(IC_dc,1));
+        Y_coll = Y(size(IC_dc,1)+1:size(IC_dc,1)+size(IC_coll,1));
+        Y_coll(1) = Y_dc(8+7);
+        
+        dY_dc = mcIntyre(t,Y_dc,index_dc,para_dc,V_e_dc,Xlr_dc,Istim_dc);
+        dY_coll = mcIntyre(t,Y_coll,index_coll,para_coll,V_e_coll,Xlr_coll,Istim_coll);
+        
+        
+        branch_i = ((Y_dc(8+7)-(Y_coll(index_coll.i_mysa(3))+Y_coll(index_coll.i_mysa_b(3))))/(para_dc.r_node/2+para_coll.r_mysa/2))/para_dc.c_node;
+        branch_e = ((V_e_dc(8+7)-V_e_coll(index_coll.i_mysa(3)))/(para_dc.r_node/2+para_coll.r_mysa/2))/para_dc.c_node;
+
+        dY_dc(8+7) =dY_dc(8+7)-branch_i-branch_e;
+        dY_coll(1) = dY_dc(8+7);
+        dY = [dY_dc;dY_coll];
+    end
+
+    
+    
+    function dY = mcIntyre(t,Y,i,p,V_e,Xlr,Istim)
+        
+        
+        %calc dY
+    
+        inter = zeros(i.N_inter,6);
+        inter_b = zeros(i.N_inter,6);
+
+        %V^i
+        node = Y(i.i_node(1):i.i_node(2));
+        para_m = Y(i.i_para_m(1):i.i_para_m(2));
+        para_h = Y(i.i_para_h(1):i.i_para_h(2));
+        para_p = Y(i.i_para_p(1):i.i_para_p(2));
+        para_s = Y(i.i_para_s(1):i.i_para_s(2));
+        mysa_l = Y(i.i_mysa(1):i.i_mysa(2));
+        mysa_r = Y(i.i_mysa(3):i.i_mysa(4));
+        flut_l = Y(i.i_flut(1):i.i_flut(2));
+        flut_r = Y(i.i_flut(3):i.i_flut(4));
+        para_n_l = Y(i.i_para_n(1):i.i_para_n(2));
+        para_n_r = Y(i.i_para_n(3):i.i_para_n(4));
+        inter(:,1) = Y(i.i_inter(1,1):i.i_inter(1,2));
+        inter(:,2) = Y(i.i_inter(2,1):i.i_inter(2,2));
+        inter(:,3) = Y(i.i_inter(3,1):i.i_inter(3,2));
+        inter(:,4) = Y(i.i_inter(4,1):i.i_inter(4,2));
+        inter(:,5) = Y(i.i_inter(5,1):i.i_inter(5,2));
+        inter(:,6) = Y(i.i_inter(6,1):i.i_inter(6,2));
+
+        %V^p
+        mysa_l_b = Y(i.i_mysa_b(1):i.i_mysa_b(2));
+        mysa_r_b = Y(i.i_mysa_b(3):i.i_mysa_b(4));
+        flut_l_b = Y(i.i_flut_b(1):i.i_flut_b(2));
+        flut_r_b = Y(i.i_flut_b(3):i.i_flut_b(4));
+        inter_b(:,1) = Y(i.i_inter_b(1,1):i.i_inter_b(1,2));
+        inter_b(:,2) = Y(i.i_inter_b(2,1):i.i_inter_b(2,2));
+        inter_b(:,3) = Y(i.i_inter_b(3,1):i.i_inter_b(3,2));
+        inter_b(:,4) = Y(i.i_inter_b(4,1):i.i_inter_b(4,2));
+        inter_b(:,5) = Y(i.i_inter_b(5,1):i.i_inter_b(5,2));
+        inter_b(:,6) = Y(i.i_inter_b(6,1):i.i_inter_b(6,2)); 
+
+        %if E^e is assumed to be constant d(V^p) equals d(E^p)
+        mysa_l_b_e = mysa_l_b;
+        mysa_r_b_e = mysa_r_b;
+        flut_l_b_e = flut_l_b;
+        flut_r_b_e = flut_r_b;
+        inter_b_e = inter_b;
+
+
+        %E^i
+        node_e = node;
+        mysa_l_e = mysa_l + mysa_l_b_e;
+        mysa_r_e = mysa_r + mysa_r_b_e;
+        flut_l_e = flut_l + flut_l_b_e;
+        flut_r_e = flut_r + flut_r_b_e;
+        inter_e = inter + inter_b_e;
+
+        [dnode,dpara_m,dpara_h,dpara_p,dpara_s] = nodeEq(node,para_m, ...
+            para_h,para_p,para_s,node_e,mysa_l_e,mysa_r_e,...
+            V_e(i.i_node(1):i.i_node(2)),V_e(i.i_mysa(1):i.i_mysa(2)),...
+            V_e(i.i_mysa(3):i.i_mysa(4)),Xlr,Istim,p);
+
+        [dmysa_l,dmysa_l_b] = mysaEq(mysa_l,mysa_l_b,...
+            mysa_l_e, node_e(2:i.N_nodes), flut_l_e, ...
+            mysa_l_b_e, 0, flut_l_b_e,V_e(i.i_mysa(1):i.i_mysa(2)),...
+            V_e(2:i.N_nodes),V_e(i.i_flut(1):i.i_flut(2)),p);
+
+        [dmysa_r,dmysa_r_b] = mysaEq(mysa_r,mysa_r_b, ... 
+            mysa_r_e, node_e(1:i.N_inter), flut_r_e,...
+            mysa_r_b_e, 0, flut_r_b_e,V_e(i.i_mysa(3):i.i_mysa(4)), ...
+            V_e(1:i.N_inter),V_e(i.i_flut(3):i.i_flut(4)),p);
+
+        [dflut_l,dflut_l_b] = flutEq(flut_l,flut_l_b,...
+            flut_l_e, mysa_l_e ,inter_e(:,1),...
+            flut_l_b_e,mysa_l_b_e,inter_b_e(:,1),...
+            V_e(i.i_flut(1):i.i_flut(2)),V_e(i.i_mysa(1):i.i_mysa(2)), ...
+            V_e(i.i_inter(1,1):i.i_inter(1,2)),p);
+
+        [dflut_r,dflut_r_b] = flutEq(flut_r,flut_r_b,...
+            flut_r_e, mysa_r_e, inter_e(:,6),...
+            flut_r_b_e, mysa_r_b_e, inter_b_e(:,6),...
+            V_e(i.i_flut(3):i.i_flut(4)),V_e(i.i_mysa(3):i.i_mysa(4)), ...
+            V_e(i.i_inter(6,1):i.i_inter(6,2)),p);
+
+        dpara_n_l = zeros(i.N_inter,1);
+        dpara_n_r = zeros(i.N_inter,1);
+
+        e_inter = zeros(i.N_inter,6);
+
+        e_inter(:,1) = V_e(i.i_inter(1,1):i.i_inter(1,2));
+        e_inter(:,2) = V_e(i.i_inter(2,1):i.i_inter(2,2));
+        e_inter(:,3) = V_e(i.i_inter(3,1):i.i_inter(3,2));
+        e_inter(:,4) = V_e(i.i_inter(4,1):i.i_inter(4,2));
+        e_inter(:,5) = V_e(i.i_inter(5,1):i.i_inter(5,2));
+        e_inter(:,6) = V_e(i.i_inter(6,1):i.i_inter(6,2));
+
+        [dinter,dinter_b] = interEq(inter,inter_b,...
+            inter_e, flut_l_e, flut_r_e, ...
+            inter_b_e, flut_l_b_e, flut_r_b_e, e_inter, ...
+            V_e(i.i_flut(1):i.i_flut(2)),V_e(i.i_flut(3):i.i_flut(4)),p,i);
+
+
+
+        %finally assemble derivatives into an
+        dY=[dnode;dpara_m;dpara_h;dpara_p;dpara_s;dmysa_l;dmysa_r;...
+            dflut_l;dflut_r;dpara_n_l;dpara_n_r;dinter(:,1); ...
+            dinter(:,2);dinter(:,3);dinter(:,4);dinter(:,5);...
+            dinter(:,6);dmysa_l_b;dmysa_r_b;dflut_l_b;dflut_r_b;...
+            dinter_b(:,1);dinter_b(:,2);dinter_b(:,3);...
+            dinter_b(:,4);dinter_b(:,5);dinter_b(:,6)]; 
+        
+    end
+
+
+
+
+
+    function [dV,dm,dh,dp,ds] = nodeEq(V,m,h,p,s,...
+            Ei, EiMl,EiMr,Vex,VexMl,VexMr,Xlr,Istim,para)
+        [I,dm,dh,dp,ds] = axnode2(V,m,h,p,s,para);
+        Iax = axialI(Ei,[para.vrest;EiMl],[EiMr;para.vrest],para.r_node,para.r_mysa,para.r_mysa);
+        Iex = axialI(Vex,[Xlr(1);VexMl],[VexMr;Xlr(2)],...
+            para.r_node,para.r_mysa,para.r_mysa);
+        dV = (-I-Iax+Istim-Iex)./para.c_node;
+       
+    end
+
+    function [dV,dVp] = interEq(V, Vp, Ei, EiFl, EiFr, Ep, EpFl,...
+            EpFr,Vex,VexFl,VexFr,p,i)
+        dV = zeros(i.N_inter,6);
+        dVp = zeros(i.N_inter,6);
+        
+        Iax1 = axialI(Ei(:,1),EiFl,Ei(:,2),p.r_inter,p.r_flut,p.r_inter);
+        Ipx1 = axialI(Ep(:,1),EpFl,Ep(:,2),p.r_px,p.r_pn2,p.r_px);
+        Iex1 = axialI(Vex(:,1),VexFl,Vex(:,2),p.r_inter,p.r_flut,p.r_inter);
+        [dV(:,1), dVp(:,1)] = compartment(V(:,1),Vp(:,1),Iax1,Ipx1,Iex1,...
+             p.vrest, p.c_inter, p.c_inter_m, p.g_inter, p.g_inter_m);
+        
+        Iax6 = axialI(Ei(:,6),EiFr,Ei(:,5),p.r_inter,p.r_flut,p.r_inter);
+        Ipx6 = axialI(Ep(:,6),EpFr,Ep(:,5),p.r_px,p.r_pn2,p.r_px);
+        Iex6 = axialI(Vex(:,6),VexFr,Vex(:,5),p.r_inter,p.r_flut,p.r_inter);
+        [dV(:,6), dVp(:,6)] = compartment(V(:,6),Vp(:,6),Iax6,Ipx6,Iex6,...
+             p.vrest, p.c_inter, p.c_inter_m, p.g_inter, p.g_inter_m);
+        
+        for j = 2:5
+            Iax = axialI(Ei(:,j),Ei(:,j-1),Ei(:,j+1),...
+                p.r_inter,p.r_inter,p.r_inter);
+            Ipx = axialI(Ep(:,j),Ep(:,j-1),Ep(:,j+1),p.r_px,p.r_px,p.r_px);
+            Iex = axialI(Vex(:,j),Vex(:,j-1),Vex(:,j+1),...
+                p.r_inter,p.r_inter,p.r_inter);
+            [dV(:,j), dVp(:,j)] = compartment(V(:,j),Vp(:,j), ...
+                Iax,Ipx,Iex,p.vrest,p.c_inter,p.c_inter_m,p.g_inter,p.g_inter_m);
+        end
+        
+    end
+
+    function [dV,dVp] = flutEq(V, Vp, Ei, EiM, EiI, Ep, EpM, EpI,...
+            Vex,VexM,VexI,p)
+       Iax = axialI(Ei,EiM,EiI,p.r_flut,p.r_mysa,p.r_inter);
+       Ipx = axialI(Ep,EpM,EpI,p.r_pn2,p.r_pn1,p.r_px);
+       Iex = axialI(Vex,VexM,VexI,p.r_flut,p.r_mysa,p.r_inter);
+       
+       [dV, dVp] = compartment(V,Vp, Iax, Ipx, Iex, p.vrest, p.c_flut, ...
+           p.c_flut_m, p.g_flut, p.g_flut_m);
+                                                  
+    end
+
+    function [dV, dVp] = mysaEq(V,Vp,Ei,EiN,EiF,Ep,EpN,EpF,Vex,VexN,VexF,p)
+        Iax = axialI(Ei,EiN,EiF,p.r_mysa,p.r_node,p.r_flut);
+        Ipx = axialI(Ep,EpN,EpF,p.r_pn1,p.r_pn0,p.r_pn2);
+        Iex = axialI(Vex,VexN,VexF,p.r_mysa,p.r_node,p.r_flut);
+        [dV, dVp] = compartment(V,Vp, Iax, Ipx, Iex, p.vrest, p.c_mysa, ...
+           p.c_mysa_m, p.g_mysa, p.g_mysa_m);
+    end
+
+    function [dV, dVp] = compartment(V, Vp, Iaxonal, Iperiaxonal, Iex, ...
+                                     epas, cmem, cmy, gmem, gmy)
+        IPas = gmem.*(V - epas);
+        Imyelin = gmy.*(Vp);
+        ICmem = -IPas -Iaxonal-Iex;
+        ICmyelin = - Imyelin -Iperiaxonal -Iaxonal-Iex;
+        
+        dV = (1./cmem).*(ICmem);
+        dVp= (1./cmy).*(ICmyelin);
+    end
+
+    function I = axialI(V,V1,V2,r,r1,r2)
+        I = (V-V1)./(r/2+r1/2)+(V-V2)./(r/2+r2/2);
+    end
+
+    % axnode: calculation of the currents of the axon
+    function [I,dm,dh,dp,ds] = axnode(V,m,h,p,s)
+
+        m_alpha = (6.57 .* (V+21.4))./(1-exp(-(V+21.4)./10.3));
+        m_beta = (0.304 .* (-(V+25.7)))./(1-exp((V+25.7)./9.16));
+        h_alpha = (0.34 .* (-(V+114)))./(1-exp((V+114)./11));
+        h_beta = 12.6./(1+exp(-(V+31.8)./13.4));
+
+        p_alpha = (0.0353 .* (V+27))./(1-exp(-(V+27)./10.2));
+        p_beta = (0.000883 .* (-(V+34)))./(1-exp((V+34)./10));
+
+        s_alpha = 0.3./(1+exp((V+53)./-5));
+        s_beta = 0.03./(1+exp((V+90)./-1));
+
+        %first derivatives of m, h, p, s
+        dm = dpdt(m_alpha,m_beta,m);
+        dh = dpdt(h_alpha,h_beta,h);
+        dp = dpdt(p_alpha,p_beta,p);
+        ds = dpdt(s_alpha,s_beta,s);
+
+        I_Naf = g_naf.*m.^3.*h.*(V-e_na);       %Fast Sodium current
+        I_Nap = g_nap.*p.^3.*(V-e_na);          %Persistent Sodium current
+        I_Ks = g_k.*s.*(V-e_k);                 %Slow Potassium current
+        I_Lk = g_l*(V-e_l);                     %Leakage current
+        I = I_Naf + I_Nap + I_Ks + I_Lk;        %Sum of all nodal currents
+    end
+
+    function [I,dm,dh,dp,ds] = axnode2(V,m,h,p,s,para)
+        
+        [m_alpha,m_beta] = m_ab(V);
+        [h_alpha,h_beta] = h_ab(V);
+        [p_alpha,p_beta] = p_ab(V);
+        [s_alpha,s_beta] = s_ab(V);
+        
+        %first derivatives of m, h, p, s
+        dm = dpdt(m_alpha,m_beta,m);
+        dh = dpdt(h_alpha,h_beta,h);
+        dp = dpdt(p_alpha,p_beta,p);
+        ds = dpdt(s_alpha,s_beta,s);
+
+        I_Naf = para.g_naf.*m.^3.*h.*(V-para.e_na);       %Fast Sodium current
+        I_Nap = para.g_nap.*p.^3.*(V-para.e_na);          %Persistent Sodium current
+        I_Ks = para.g_k.*s.*(V-para.e_k);                 %Slow Potassium current
+        I_Lk = para.g_l*(V-para.e_l);                     %Leakage current
+        I = I_Naf + I_Nap + I_Ks + I_Lk;        %Sum of all nodal currents
+    end
+
+    % flutPotassim: flut potassium current
+    function [I,dn] = flutPotassium(V,n)
+        n_alpha = (0.0462 .* (V+83.2))./(1-exp(-(V+83.2)./1.1));
+        n_beta = (0.0824 .* (-(V+66))) ./ (1-exp((V+66)./10.5));
+        
+        dn = dpdt(n_alpha,n_beta,n);
+        
+        I_Kf = g_kf.*n.^4.*(V-e_k);
+        
+        I = I_Kf; 
+    end
+
+    function [m_alpha,m_beta] = m_ab(V)
+        m_alpha = (1.86 .* (V+21.4))./(1-exp(-(V+21.4)./10.3)) * q10_1;
+        m_beta = (0.086 .* (-(V+25.7)))./(1-exp((V+25.7)./9.16)) * q10_1;
+    end
+
+    function [h_alpha,h_beta] = h_ab(V)
+        h_alpha = (0.062 .* (-(V+114)))./(1-exp((V+114)./11)) * q10_2;
+        h_beta = 2.3./(1+exp(-(V+31.8)./13.4)) * q10_2;
+    end
+
+    function [p_alpha,p_beta] = p_ab(V)
+        p_alpha = (0.01 .* (V+27))./(1-exp(-(V+27)./10.2)) * q10_1;
+        p_beta = (0.00025 .* (-(V+34)))./(1-exp((V+34)./10)) * q10_1;
+    end
+
+    function [s_alpha,s_beta] = s_ab(V)
+        s_alpha = 0.3./(1+exp((V+53)./-5))*q10_3;
+        s_beta = 0.03./(1+exp((V+90)./-1))*q10_3;
+    end
+    
+    % dpdt: calculates the derivative of the of the parameter according to
+    %       alpha, beta and the previous value
+    function dp = dpdt(alpha, beta, para)
+        dp = alpha.*(1-para)-beta.*para;
+    end
+
+    function [rax,rpx,cmem,cmy,gpas,gmy] = ...
+            paracomp(diameter,length,space, fiberDia, c, r, g, nl, xc, xg)
+       %args must be in um, ohm*cm and uF respectively
+       rax = calcResAxial(diameter,length,r);
+       rpx = calcResPeriax(diameter,length,space,r);
+       cmem = calcCapacity(diameter, length, c);
+       cmy = calcMyelinCap(fiberDia, length, xc, nl);
+       gpas = calcConductance(diameter, length, g);
+       gmy = calcMyelinCond(fiberDia, length, xg, nl);
+    end
+
+    function rax = calcResAxial(diameter, length, r)
+       %um and Ohm*cm
+       a=pi*diameter^2;
+       rax = calcRes(a,length,r);
+    end
+    
+    function rpx = calcResPeriax(diameter, length, space, r)
+        %um and Ohm*cm
+        a = pi*((diameter+(2*space))^2-diameter^2);
+        rpx = calcRes(a,length,r);
+    end
+
+    function res = calcRes(area, length, r)
+
+        ra = r*1e-5;     %GOhm*um
+        res = (4*(length)*ra)/area;
+    end
+
+    function c = calcMyelinCap(fiberDiameter, length, xc, nl)
+        xc = xc/(nl*2);
+        c = calcCapacity(fiberDiameter, length, xc);
+        %c is in uF
+    end
+
+    function c = calcCapacity(diameter, length, cap)
+       %um and uF/cm^2
+       cap = cap*1e-2;   %pF/um^2 
+       c = cap*diameter*length*pi;
+       %c is in uF
+    end
+
+    function gmy = calcMyelinCond(fiberDiameter, length, xg, nl)
+       xg = xg/(nl*2);
+       gmy = calcConductance(fiberDiameter, length, xg);
+    end
+
+    function g = calcConductance(diameter, length, gi)
+        %in S/cm^2 and um
+        gi = gi*1e1; %nS/um^2
+        g = gi*diameter*length*pi;
+    end
+
+    function [Ve,N,x_af,af,Vlr] = interpolate(file,p,longer)
+        data = importdata(file);
+        % to mV
+        Ve_pulse = 1e3*data(:,4);
+        % to cm
+        x = 100*data(:,1);
+        y = 100*data(:,2);
+        z = 100*data(:,3);
+        s(1) = 0;
+        for i=1:length(x)-1
+            s(i+1) = s(i) + sqrt((x(i+1)-x(i))^2 + (y(i+1)-y(i))^2 +...
+                (z(i+1)-z(i))^2);
+        end
+        n = floor(s(length(x)-1)/(p.deltax*1e-4))+8*longer+8;
+        N = n+1;
+        
+        
+        
+        if longer == 1
+            [x_n,x_m,x_f,x_i] = calcX(N,p);
+            x_n=x_n-8*(p.deltax+1)*1e-4;
+            x_m=x_m-8*(p.deltax+1)*1e-4;
+            x_f=x_f-8*(p.deltax+1)*1e-4;
+            x_i=x_i-8*(p.deltax+1)*1e-4;
+           
+        end
+        if longer == 0
+            [x_n,x_m,x_f,x_i] = calcX(N,p);
+        end
+        
+        
+        
+        
+        xlr=[x_n(1)-2e-4,x_n(N)+2e-4];
+        
+        displacment = 0;
+        x_n=x_n+displacment*1e-4*p.deltax/10;
+        x_m=x_m+displacment*1e-4*p.deltax/10;
+        x_f=x_f+displacment*1e-4*p.deltax/10;
+        x_i=x_i+displacment*1e-4*p.deltax/10;
+        xlr=xlr+displacment*1e-4*p.deltax/10;
+        
+        Vlr = interp1(s,Ve_pulse,xlr,'linear','extrap');
+        
+        Ve_n = interp1(s,Ve_pulse,x_n,'linear','extrap');
+        Ve_m = [interp1(s,Ve_pulse,x_m(:,1),'linear','extrap'); ...
+                interp1(s,Ve_pulse,x_m(:,2),'linear','extrap')];
+        Ve_f = [interp1(s,Ve_pulse,x_f(:,1),'linear','extrap'); ...
+                interp1(s,Ve_pulse,x_f(:,2),'linear','extrap')];
+        Ve_i = [interp1(s,Ve_pulse,x_i(:,1),'linear','extrap'); ...
+                interp1(s,Ve_pulse,x_i(:,2),'linear','extrap'); ...
+                interp1(s,Ve_pulse,x_i(:,3),'linear','extrap'); ...
+                interp1(s,Ve_pulse,x_i(:,4),'linear','extrap'); ...
+                interp1(s,Ve_pulse,x_i(:,5),'linear','extrap'); ...
+                interp1(s,Ve_pulse,x_i(:,6),'linear','extrap')];
+        Ve = [Ve_n;zeros(N*4,1);Ve_m;Ve_f;zeros((N-1)*2,1);Ve_i];
+        x_af = [];
+        af = [];
+        expot = [];
+        
+         for i = 1:n
+             
+             x_af = [x_af,x_n(i),x_m(i,2),x_f(i,2),x_i(i,6),...
+                 x_i(i,5),x_i(i,4),x_i(i,3),x_i(i,2),x_i(i,1),...
+                 x_f(i,1),x_m(i,1)];
+             expot = [expot,Ve_n(i),Ve_m(i+n),Ve_f(i+n),Ve_i(i+5*n),...
+                 Ve_i(i+4*n),Ve_i(i+3*n),Ve_i(i+2*n),Ve_i(i+n),Ve_i(i),...
+                 Ve_f(i),Ve_m(i)];
+         end
+         x_af = [x_af,x_n(N)];
+         expot = [expot,Ve_n(N)];
+        
+         figure(10);
+         plot(x_af,expot);
+        
+    end
+
+    function [x_n,x_m1,x_f1,x_i1] = calcX(N,p)
+        x_n(1) = 0.5*1e-4;
+        x_m(1,1) = x_n(1) + 0.5*1e-4 + p.mysalength/2*1e-4;
+        x_m(1,2) = x_n(1) + (1+p.deltax)*1e-4 -p.mysalength/2*1e-4;
+        x_f(1,1) = x_m(1,1) + p.flutlength/2*1e-4 + p.mysalength/2*1e-4;
+        x_f(1,2) = x_m(1,2) - p.flutlength*1e-4 - p.mysalength/2*1e-4;
+        x_i = zeros(N-1,6);
+        x_i(1,1) = x_f(1,1) + p.flutlength/2*1e-4 +p.interlength/2*1e-4;
+        for j = 2:6
+            x_i(1,j) = x_i(1,1) + (j-1)*p.interlength*1e-4;
+        end
+        for i=2:N
+            x_n(i) = x_n(i-1) + p.deltax*1e-4+1e-4;
+        end
+        N
+        for i=2:N-1
+            x_m(i,1) = x_m(i-1,1) + (1+p.deltax)*1e-4;
+            x_m(i,2) = x_m(i-1,2) + (1+p.deltax)*1e-4;
+            x_f(i,1) = x_f(i-1,1) + (1+p.deltax)*1e-4;
+            x_f(i,2) = x_f(i-1,2) + (1+p.deltax)*1e-4;
+            for j = 1:6
+                x_i(i,j) = x_i(i-1,j) + (1+p.deltax)*1e-4;
+            end 
+        end
+        
+        x_m1(:,1) = x_m(:,2);
+        x_m1(:,2) = x_m(:,1);
+        x_f1(:,1) = x_f(:,2);
+        x_f1(:,2) = x_f(:,1);
+        x_i1=zeros(N-1,6);
+        for i=1:6
+            x_i1(:,i) = x_i(:,7-i);
+        end
+        x_n=x_n';
+    end
+
+    function IC = createIC(i)
+        IC = zeros(i.i_inter_b(6,2),1);
+        IC(1:i.N_nodes) = -80;
+        IC(i.i_mysa(1):i.i_flut(4)) = -80;
+        IC(i.i_inter(1,1):i.i_inter(6,2)) = -80;
+        [m_alpha,m_beta] = m_ab(-80);
+        [h_alpha,h_beta] = h_ab(-80);
+        [p_alpha,p_beta] = p_ab(-80);
+        [s_alpha,s_beta] = s_ab(-80);
+        IC(i.i_para_m(1):i.i_para_m(2)) = m_alpha/(m_alpha+m_beta);
+        IC(i.i_para_h(1):i.i_para_h(2)) = h_alpha/(h_alpha+h_beta);
+        IC(i.i_para_p(1):i.i_para_p(2)) = p_alpha/(p_alpha+p_beta);
+        IC(i.i_para_s(1):i.i_para_s(2)) = s_alpha/(s_alpha+s_beta); 
+    end
+
+end
+
