@@ -1,4 +1,13 @@
+%% Version 1.2 changed on March 22, 2014
+
 function [ t,Y ] = mcintyre_final(dur,file,V_fe,V_applied,stim_dur)
+%dur simulaiton duration
+%file filnam of input file for extracellular stimulation, the file should
+%have four columns the coordinates x, y, z (all in cm) and the potential V in V
+%V_fe the potential use for the FE simulation,
+%V_applied the potential that should be simulated (extracellular voltage
+%will be scale by V_applied/V_fe
+%stim_dur duration of the stimulation pulse
 
     vrest = -80;        %mV
     fiberD=16.0;        %um
@@ -498,7 +507,7 @@ function [ t,Y ] = mcintyre_final(dur,file,V_fe,V_applied,stim_dur)
     end
 
     function [Ve,N,x_af,af,Vlr] = interpolate(file)
-        data = importdata(file);
+        data = load(file);
         % to mV
         Ve_pulse = 1e3*data(:,4);
         % to cm
@@ -585,16 +594,16 @@ function [ t,Y ] = mcintyre_final(dur,file,V_fe,V_applied,stim_dur)
     function [x_n,x_m1,x_f1,x_i1] = calcX(N)
         x_n(1) = 0.5*1e-4;
         x_m(1,1) = x_n(1) + 0.5*1e-4 + mysalength/2*1e-4;
-        x_m(1,2) = x_n(1) + (1+deltax)*1e-4 -mysalength/2*1e-4;
+        x_m(1,2) = x_n(1) + (deltax+0.5)*1e-4 -mysalength/2*1e-4;
         x_f(1,1) = x_m(1,1) + flutlength/2*1e-4 + mysalength/2*1e-4;
-        x_f(1,2) = x_m(1,2) - flutlength*1e-4 - mysalength/2*1e-4;
+        x_f(1,2) = x_m(1,2) - flutlength/2*1e-4 - mysalength/2*1e-4;
         x_i = zeros(N-1,6);
         x_i(1,1) = x_f(1,1) + flutlength/2*1e-4 +interlength/2*1e-4;
         for j = 2:6
             x_i(1,j) = x_i(1,1) + (j-1)*interlength*1e-4;
         end
         for i=2:N
-            x_n(i) = x_n(i-1) + deltax*1e-4+1e-4;
+            x_n(i) = x_n(i-1) + (1+deltax)*1e-4;
         end
         N
         for i=2:N-1
@@ -604,7 +613,7 @@ function [ t,Y ] = mcintyre_final(dur,file,V_fe,V_applied,stim_dur)
             x_f(i,2) = x_f(i-1,2) + (1+deltax)*1e-4;
             for j = 1:6
                 x_i(i,j) = x_i(i-1,j) + (1+deltax)*1e-4;
-            end 
+            end
         end
         
         x_m1(:,1) = x_m(:,2);
