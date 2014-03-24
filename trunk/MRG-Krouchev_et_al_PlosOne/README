@@ -1,0 +1,8 @@
+Matlab code of the MRG model [1] as it was used in [2]. The implementation was initially developed for [3] and both versions can be downloaded at https://code.google.com/p/mrg-matlab/ . Calling fr2m creates figure 10A of [2]. Note that sundialsTB needs to be installed (free download at http://computation.llnl.gov/casc/sundials/main.html).  
+
+
+1. McIntyre CC, Richardson AG, Grill WM. Modeling the excitability of mammalian nerve fibers: influence of afterpotentials on the recovery cycle. J Neurophysiol. 2002 Feb;87(2):995-1006.
+
+2. Krouchev NI, Danner SM, Vinet A, Rattay F, Sawan M. Energy-optimal electrical-stimulation pulses shaped by the least-action principle. PLoS One. 2014 Mar 13;9(3):e90480. doi: 10.1371/journal.pone.0090480.
+
+3. Danner SM, Hofstoetter US, Ladenbauer J, Rattay F, Minassian K. Can the human lumbar posterior columns be stimulated by transcutaneous spinal cord stimulation? A modeling study. Artif Organs. 2011 Mar;35(3):257-62.
