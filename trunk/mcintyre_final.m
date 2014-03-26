@@ -1,4 +1,4 @@
-%% Version 1.2 changed on March 22, 2014
+%% Version 1.3 changed on March 26, 2014
 
 function [ t,Y ] = mcintyre_final(dur,file,V_fe,V_applied,stim_dur)
 %dur simulaiton duration
@@ -526,18 +526,18 @@ function [ t,Y ] = mcintyre_final(dur,file,V_fe,V_applied,stim_dur)
         
         if half == 0
             [x_n,x_m,x_f,x_i] = calcX(N);
-            x_n=x_n-8*(deltax+1)*1e-4;
-            x_m=x_m-8*(deltax+1)*1e-4;
-            x_f=x_f-8*(deltax+1)*1e-4;
-            x_i=x_i-8*(deltax+1)*1e-4;
+            x_n=x_n-8*(deltax)*1e-4;
+            x_m=x_m-8*(deltax)*1e-4;
+            x_f=x_f-8*(deltax)*1e-4;
+            x_i=x_i-8*(deltax)*1e-4;
            
         end
         if half == 1
             [x_n,x_m,x_f,x_i] = calcX(floor(N/2));
-            x_n = x_n + floor(N/2)*(deltax+1)*1e-4;
-            x_m = x_m + floor(N/2)*(deltax+1)*1e-4;
-            x_f = x_f + floor(N/2)*(deltax+1)*1e-4;
-            x_i = x_i + floor(N/2)*(deltax+1)*1e-4;
+            x_n = x_n + floor(N/2)*(deltax)*1e-4;
+            x_m = x_m + floor(N/2)*(deltax)*1e-4;
+            x_f = x_f + floor(N/2)*(deltax)*1e-4;
+            x_i = x_i + floor(N/2)*(deltax)*1e-4;
             N = floor(N/2);
             n = N-1;
         end
@@ -592,9 +592,10 @@ function [ t,Y ] = mcintyre_final(dur,file,V_fe,V_applied,stim_dur)
     end
 
     function [x_n,x_m1,x_f1,x_i1] = calcX(N)
+        %deltax is the center-to-center separation of the nodes
         x_n(1) = 0.5*1e-4;
         x_m(1,1) = x_n(1) + 0.5*1e-4 + mysalength/2*1e-4;
-        x_m(1,2) = x_n(1) + (deltax+0.5)*1e-4 -mysalength/2*1e-4;
+        x_m(1,2) = x_n(1) + (deltax-0.5)*1e-4 -mysalength/2*1e-4;
         x_f(1,1) = x_m(1,1) + flutlength/2*1e-4 + mysalength/2*1e-4;
         x_f(1,2) = x_m(1,2) - flutlength/2*1e-4 - mysalength/2*1e-4;
         x_i = zeros(N-1,6);
@@ -603,16 +604,16 @@ function [ t,Y ] = mcintyre_final(dur,file,V_fe,V_applied,stim_dur)
             x_i(1,j) = x_i(1,1) + (j-1)*interlength*1e-4;
         end
         for i=2:N
-            x_n(i) = x_n(i-1) + (1+deltax)*1e-4;
+            x_n(i) = x_n(i-1) + (deltax)*1e-4;
         end
         N
         for i=2:N-1
-            x_m(i,1) = x_m(i-1,1) + (1+deltax)*1e-4;
-            x_m(i,2) = x_m(i-1,2) + (1+deltax)*1e-4;
-            x_f(i,1) = x_f(i-1,1) + (1+deltax)*1e-4;
-            x_f(i,2) = x_f(i-1,2) + (1+deltax)*1e-4;
+            x_m(i,1) = x_m(i-1,1) + (deltax)*1e-4;
+            x_m(i,2) = x_m(i-1,2) + (deltax)*1e-4;
+            x_f(i,1) = x_f(i-1,1) + (deltax)*1e-4;
+            x_f(i,2) = x_f(i-1,2) + (deltax)*1e-4;
             for j = 1:6
-                x_i(i,j) = x_i(i-1,j) + (1+deltax)*1e-4;
+                x_i(i,j) = x_i(i-1,j) + (deltax)*1e-4;
             end
         end
         
